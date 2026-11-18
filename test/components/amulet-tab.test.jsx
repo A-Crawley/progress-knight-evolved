@@ -118,13 +118,31 @@ test("past lives list each life, then the one being lived", async () => {
     assert.match(rows[1].splice(4, 1)[0], /^3s \d+c$/)
     assert.match(rows[3].splice(4, 1)[0], /^2s \d+c$/)
     assert.deepEqual(rows, [
-        ["1", "1200–1252", "Footman 31", "Strength 112", "8g 12s", "Touched the eye at 66"],
-        ["2", "1200–1386", "Squire 14", "Immortality 35936", "Embraced evil at 200 (+3.0 evil)"],
-        ["3", "1200–1216", "Unknown 2", "Strength 1", "0c", "Touched the eye at 30"],
-        ["3", "1200–now", "Farmer 7", "Concentration 0", "Living"],
+        ["1", "Summer 1252", "Footman 31", "Strength 112", "8g 12s", "Touched the eye at 66"],
+        ["2", "Summer 1386 Furthest", "Squire 14", "Immortality 35936", "Embraced evil at 200"],
+        ["3", "Summer 1216", "Unknown 2", "Strength 1", "0c", "Touched the eye at 30"],
+        ["3", "Summer 1200", "Farmer 7", "Concentration 0", "Living"],
     ])
+    const headers = [...document.querySelectorAll("#pastLives [role=columnheader]")].map(header => header.textContent)
+    assert.deepEqual(headers, ["Life", "Reached", "Best job", "Best skill", "Peak purse", "Ended"])
+    assert.equal(document.querySelectorAll(".past-furthest").length, 1, "only the record is marked")
+    assert.equal(document.querySelectorAll("#pastLives .past-ended")[1].title, "+3.0 evil", "the evil gained is kept in the tooltip")
     assert.ok(document.querySelector(".past-living .past-ended"))
-    assert.ok(document.querySelector(".past-living .past-years"))
+    assert.ok(document.querySelector(".past-living .past-reached"))
+    assert.match(document.querySelector(".past-note").textContent, /^\s*Reached is the date a life ended\./)
+})
+
+test("a past life reaches its exact season, and this life takes the record once it passes it", async () => {
+    const game = await renderComponent("AmuletTab.tsx", "AmuletTab")
+    game.gameData.days = 110 * 365 + 300
+    fireEvent.click(screen.getByRole("button", { name: "Touch the eye" }))
+    game.gameData.days = 34 * 365 + 200
+    game.rerender()
+    assert.deepEqual(pastRows().map(row => [row[1], row[5]]), [["Winter 1296 Furthest", "Touched the eye at 110"], ["Winter 1220", "Living"]])
+
+    game.gameData.days = 114 * 365 + 195
+    game.rerender()
+    assert.deepEqual(pastRows().map(row => row[1]), ["Winter 1296", "Winter 1300 Furthest"])
     assert.equal(screen.queryByRole("button", { name: /Show all/ }), null)
 })
 

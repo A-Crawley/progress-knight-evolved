@@ -2168,7 +2168,7 @@ body.effects-off .fx-anim::after {
 
 .past-row {
     display: grid;
-    grid-template-columns: 56px 96px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.6fr);
+    grid-template-columns: 56px 170px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.6fr);
     column-gap: var(--pk-space-4);
     align-items: center;
     padding: 10px var(--pk-space-3);
@@ -2200,13 +2200,36 @@ body.effects-off .fx-anim::after {
     color: var(--pk-text-muted);
 }
 
-.past-years {
+.past-reached {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pk-space-2);
     white-space: nowrap;
+    font-weight: 500;
     color: var(--pk-text-muted);
 }
 
-.past-living .past-years {
+.past-living .past-reached {
     color: var(--pk-accent-text);
+}
+
+/* The record row: its date in full text colour, and a badge */
+.past-row:has(.past-furthest) .past-reached {
+    color: var(--pk-text);
+}
+
+.past-furthest {
+    padding: 1px 6px;
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-accent);
+    color: var(--pk-on-accent);
+    font-size: var(--pk-text-xs);
+    font-weight: 700;
+}
+
+.past-note {
+    margin: 0;
+    padding: 0 var(--pk-space-3);
 }
 
 /* On desktop the detail wrapper only groups; its cells are grid columns */
@@ -2231,7 +2254,7 @@ body.effects-off .fx-anim::after {
         padding: var(--pk-space-3);
     }
 
-    .past-years {
+    .past-reached {
         font-size: var(--pk-text-xs);
     }
 
