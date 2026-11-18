@@ -166,10 +166,10 @@ test("the foot of Touch the eye says when the next life wakes", async () => {
     const foot = () => document.querySelector("#rebirthNote2 .amulet-fine").textContent.replace(/\s+/g, " ").trim()
     game.gameData.days = 365 * 66 + 200
     game.rerender()
-    // Every life wakes in 1200, however long this one lasts
-    assert.equal(foot(), "Resets coins, age, levels and items · you’ll wake at 14 in 1200")
-    assert.equal(document.querySelector("#rebirthNote2 .amulet-fine strong").textContent, "you’ll wake at 14 in 1200")
+    // Every life wakes in Summer 1200, however long this one lasts
+    assert.equal(foot(), "Resets coins, age, levels and items · you’ll wake at 14 in Summer 1200")
+    assert.equal(document.querySelector("#rebirthNote2 .amulet-fine strong").textContent, "you’ll wake at 14 in Summer 1200")
     game.gameData.days = 365 * 70
     game.rerender()
-    assert.match(foot(), /in 1200$/)
+    assert.match(foot(), /in Summer 1200$/)
 })
