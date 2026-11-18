@@ -1,5 +1,7 @@
 // The Almanac, a small sidebar card: today's date, the days to the next
-// season, how far through this season the world is, the events running or
+// season, how far through this season the world is, the furthest date any
+// life has reached (or "New furthest" once this life passes it), the events
+// running or
 // the next one, and a way to the Chronicle in Settings. "Coming up" opens a
 // list of the next few events. It appears with the Amulet tab, and stays
 // once a life has been lived.
@@ -11,6 +13,7 @@ import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calen
 import { isUnlocked } from "../game/engine.ts"
 import { gameData } from "../game/state.ts"
 import { getActiveEvents, getUpcomingEvents, isNew } from "../game/events.ts"
+import { getRecord, reachedText, toRoman } from "../game/history.ts"
 import type { EventOccurrence } from "../game/events.ts"
 import { effectColor, effectText, seasonYearText, untilText } from "./eventText.ts"
 import { useGame } from "./gameStore.ts"
@@ -62,6 +65,7 @@ export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
                         style={{...fillStyle((date.dayOfSeason - 1) / season.days), backgroundColor: "var(--pk-season-" + season.id + ")"}}></div>
                 </div>
             </div>
+            <RecordLine />
             {running.map(occurrence => <EventBox key={occurrence.event.id} occurrence={occurrence} today={today} />)}
             {showList && (
                 <div id="almanacUpcoming" className="almanac-upcoming">
@@ -91,6 +95,30 @@ export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
                 <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
             </button>
         </section>
+    )
+}
+
+// "Furthest: Winter 1296 · life III, age 110", or "New furthest · past
+// Winter 1296" while this life is beyond every life before it. A first life
+// has nothing to beat, so no line.
+function RecordLine() {
+    const record = getRecord()
+    if (record.living && record.previous === null) return null
+    if (record.living) {
+        return (
+            <span className="card-note almanac-line almanac-record almanac-record-new">
+                <strong>New furthest</strong>
+                {" "}
+                <span>{"past " + reachedText(record.previous ?? record.day)}</span>
+            </span>
+        )
+    }
+    return (
+        <span className="card-note almanac-line almanac-record">
+            <span>Furthest: <strong>{reachedText(record.day)}</strong></span>
+            {" "}
+            <span>{(record.life === null ? "" : "life " + toRoman(record.life) + ", ") + "age " + record.age}</span>
+        </span>
     )
 }
 

@@ -2867,6 +2867,16 @@ body.effects-off .fx-anim::after {
     font-weight: 600;
 }
 
+/* The record: the date in the secondary colour, or "New furthest" in the gain colour */
+.almanac-record strong {
+    font-weight: 600;
+    color: var(--pk-text-secondary);
+}
+
+.almanac-record-new strong {
+    color: var(--pk-gain-text);
+}
+
 .almanac-next-event strong {
     font-weight: 600;
     color: var(--pk-text-secondary);
