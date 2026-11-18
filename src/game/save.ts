@@ -3,6 +3,7 @@
 import { namesById, idsByName } from "./data.ts"
 import { gameData, MAX_LIVES } from "./state.ts"
 import { GROWING_UP_DAYS, worldDayAt } from "./calendar.ts"
+import { daysToYears } from "./rules.ts"
 import type { Life, LifeEnd } from "./state.ts"
 import { Job, Skill } from "./classes.ts"
 import { getTaskById, getItemById, setAutoPromote, setAutoLearn, setSkillSkipped } from "./engine.ts"
@@ -99,9 +100,11 @@ export function exportSave(): string {
 //            life was born and ended
 //   7      - every life wakes on the same day, so the dates are dropped;
 //            adds the furthest date any life has reached
+//   8      - each past life keeps its age in days, so the date it reached
+//            is exact rather than rounded down to the year
 // ---------------------------------------------------------------------------
 
-export const SAVE_VERSION = 7
+export const SAVE_VERSION = 8
 
 // What each version of a save looks like, as the game wrote it. A save read
 // from storage or imported by the player is only checked as far as
@@ -172,13 +175,18 @@ export interface SaveV6 extends Omit<SaveV5, "version" | "lives"> {
     lives: (Life & {born: number, ended: number})[] // world days, see calendar.ts
     lifeStartDay: number
 }
-export interface SaveV7 extends Omit<SaveV5, "version"> {
+export interface SaveV7 extends Omit<SaveV5, "version" | "lives"> {
     version: 7
+    lives: Omit<Life, "days">[]
     furthestDay: number // world days, see calendar.ts
 }
-type AnySave = LegacySave | SaveV2 | SaveV3 | SaveV4 | SaveV5 | SaveV6 | SaveV7
+export interface SaveV8 extends Omit<SaveV7, "version" | "lives"> {
+    version: 8
+    lives: Life[]
+}
+type AnySave = LegacySave | SaveV2 | SaveV3 | SaveV4 | SaveV5 | SaveV6 | SaveV7 | SaveV8
 
-export function serializeGameData(): SaveV7 {
+export function serializeGameData(): SaveV8 {
     const tasks: Record<string, SavedTask> = {}
     for (const name in gameData.taskData) {
         const task = gameData.taskData[name]
@@ -218,7 +226,7 @@ export function serializeGameData(): SaveV7 {
 
 // Converts any supported save into the current format. Throws if the save
 // can't be understood.
-export function migrateSave(input: unknown): SaveV7 {
+export function migrateSave(input: unknown): SaveV8 {
     if (input === null || typeof input !== "object" || Array.isArray(input)) {
         throw new Error("Save is not an object")
     }
@@ -232,6 +240,7 @@ export function migrateSave(input: unknown): SaveV7 {
     if (save.version === 4) save = migrateV4ToV5(save)
     if (save.version === 5) save = migrateV5ToV6(save)
     if (save.version === 6) save = migrateV6ToV7(save)
+    if (save.version === 7) save = migrateV7ToV8(save)
 
     if (save.version > SAVE_VERSION) {
         throw new Error("Save is from a newer version of the game")
@@ -377,12 +386,38 @@ function migrateV6ToV7(save: SaveV6): SaveV7 {
     }
     return Object.assign(migrated, {
         version: 7 as const,
-        lives: lives as Life[],
+        lives: lives as SaveV7["lives"],
         furthestDay: furthestDay,
     }) as SaveV7
 }
 
-function validateSave(save: SaveV7): void {
+// Version 7 kept a life's age in whole years only. Each life takes the start
+// of its last year, except that the oldest life whose age matches the record
+// is the one that set it, and takes the record's exact day. Lives with no
+// age are left as they are, and dropped when the save is applied.
+function migrateV7ToV8(save: SaveV7): SaveV8 {
+    let lives: unknown = save.lives
+    if (Array.isArray(save.lives)) {
+        const recordDays = isFiniteNumber(save.furthestDay) ? save.furthestDay - worldDayAt(0) : -1
+        let recordTaken = false
+        lives = save.lives.map(function(life: unknown) {
+            if (life === null || typeof life !== "object" || !isCount((life as {age?: unknown}).age)) return life
+            const age = (life as {age: number}).age
+            let days = age * 365
+            if (!recordTaken && recordDays >= days && daysToYears(recordDays) == age) {
+                days = recordDays
+                recordTaken = true
+            }
+            return Object.assign({}, life, {days: days})
+        })
+    }
+    return Object.assign({}, save, {
+        version: 8 as const,
+        lives: lives as Life[],
+    })
+}
+
+function validateSave(save: SaveV8): void {
     for (const key of ["coins", "days"] as const) {
         if (!isFiniteNumber(save[key])) throw new Error("Save has an invalid " + key)
     }
@@ -398,7 +433,7 @@ function isFiniteNumber(value: unknown): value is number {
 // Applies a current-format save on top of freshly initialised gameData.
 // Anything the save doesn't have, or that no longer exists in the game,
 // keeps its default value.
-function applySaveData(save: SaveV7): void {
+function applySaveData(save: SaveV8): void {
     for (const key of ["coins", "days", "evil", "rebirthOneCount", "rebirthTwoCount"] as const) {
         const value: unknown = save[key]
         if (isFiniteNumber(value)) gameData[key] = value
@@ -475,7 +510,9 @@ function readLife(value: unknown): Life | undefined {
     if (!job || !skill) return undefined
     if (!isCount(life.life) || life.life < 1 || !isCount(life.age) || !isCount(life.peakCoins) || !isCount(life.evil)) return undefined
     if (life.end !== "rebirth" && life.end !== "evil") return undefined
-    return {life: life.life, end: life.end as LifeEnd, age: life.age, job, skill, peakCoins: life.peakCoins, evil: life.evil}
+    // Days that don't agree with the age are replaced by the start of its last year
+    const days = isCount(life.days) && daysToYears(life.days) == life.age ? life.days : life.age * 365
+    return {life: life.life, end: life.end as LifeEnd, age: life.age, days, job, skill, peakCoins: life.peakCoins, evil: life.evil}
 }
 
 function readBest(value: unknown): Life["job"] | undefined {

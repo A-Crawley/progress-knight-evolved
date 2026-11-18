@@ -17,6 +17,7 @@ export interface Life {
     life: number // 1-based across the whole save
     end: LifeEnd
     age: number // years
+    days: number // its age in days at the end, so the date it reached is exact
     job: LifeBest
     skill: LifeBest
     peakCoins: number

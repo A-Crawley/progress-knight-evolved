@@ -63,6 +63,48 @@ test("the history copes with fifty lives", async () => {
     assert.equal(game.api.yearOf(spans[49].ended), 1305, "life 60 touched the eye at 119")
 })
 
+test("a life reaches the exact season its age took it to", async () => {
+    const game = await loadEngine()
+    const { gameData } = game
+    gameData.days = 70.6 * YEAR
+    game.api.rebirthOne()
+    const [past] = game.api.getLifeSpans()
+    assert.equal(past.age, 70)
+    assert.equal(game.api.reachedText(past.ended), "Winter 1256")
+    assert.equal(game.api.reachedText(0), "Summer 1200")
+    assert.equal(game.api.ageOn(past.ended), 70)
+    assert.equal(game.api.ageOn(0), 14)
+})
+
+test("the record names the life that reached it first, and what this life has passed", async () => {
+    const game = await loadEngine()
+    const { gameData } = game
+    gameData.days = 20 * YEAR
+    let record = game.api.getRecord()
+    assert.deepEqual([record.life, record.living, record.previous, record.age], [1, true, null, 20], "a first life holds it")
+
+    gameData.days = 70.6 * YEAR
+    game.api.rebirthOne()
+    gameData.days = 70.6 * YEAR
+    game.api.rebirthTwo()
+    gameData.days = 30 * YEAR
+    record = game.api.getRecord()
+    assert.deepEqual([record.life, record.living, record.age], [1, false, 70], "life 2 only matched life 1")
+    assert.equal(game.api.reachedText(record.day), "Winter 1256")
+    assert.equal(record.previous, record.day)
+
+    gameData.days = 71 * YEAR
+    record = game.api.getRecord()
+    assert.deepEqual([record.life, record.living, record.age], [3, true, 71], "this life passes it")
+    assert.equal(game.api.reachedText(record.previous), "Winter 1256", "the furthest the past lives got")
+
+    gameData.lives.shift()
+    gameData.lives.shift()
+    gameData.days = 30 * YEAR
+    record = game.api.getRecord()
+    assert.deepEqual([record.life, record.living, record.age], [null, false, 70], "the life that set it was dropped")
+})
+
 test("Roman numerals", async () => {
     assert.deepEqual([1, 4, 6, 9, 14, 40, 49, 50, 90, 400, 1994].map(toRoman),
         ["I", "IV", "VI", "IX", "XIV", "XL", "XLIX", "L", "XC", "CD", "MCMXCIV"])

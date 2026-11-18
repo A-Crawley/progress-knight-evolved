@@ -17,7 +17,7 @@ test("touching the eye records the life that ends", async () => {
     game.api.rebirthOne()
 
     assert.deepEqual(JSON.parse(JSON.stringify(gameData.lives)), [{
-        life: 1, end: "rebirth", age: 66,
+        life: 1, end: "rebirth", age: 66, days: 365 * 66 + 10,
         job: { id: "beggar", level: 30 }, skill: { id: "strength", level: 40 },
         peakCoins: 5000, evil: 0,
     }])
