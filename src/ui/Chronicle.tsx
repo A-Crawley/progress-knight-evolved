@@ -1,17 +1,18 @@
-// The Chronicle, in the Settings tab: every life on the world's calendar.
-// An overview puts all of them on one axis from the first life to now; a
-// list below gives each life a strip of its Summers and Winters, and a lane
-// above the strip marking each event it lived through. Every life wakes on
-// the same day, so the lives share a start. The life being lived updates live.
+// The Chronicle, in the Settings tab: how far every life reached. Every life
+// wakes at 14 in Summer 1200, so a life is a bar from there to the date it
+// reached; the reach chart stacks them, newest first, with the record
+// marked. A list below gives each life a strip of its Summers and Winters on
+// the same scale, and a lane above the strip marking each event it lived
+// through. The life being lived updates live.
 
 import { useState } from "react"
 import type { CSSProperties } from "react"
-import { DAYS_PER_YEAR, getWorldDay, toDate } from "../game/calendar.ts"
+import { DAYS_PER_YEAR, toDate, WAKE_DAY } from "../game/calendar.ts"
 import { calendar, events } from "../game/data.ts"
 import { getEventsInSpan, isEventUnlocked, isRare } from "../game/events.ts"
 import type { EventOccurrence } from "../game/events.ts"
-import { getLifeSpans, toRoman, yearOf } from "../game/history.ts"
-import type { LifeSpan } from "../game/history.ts"
+import { getLifeSpans, getRecord, reachedText, toRoman } from "../game/history.ts"
+import type { LifeSpan, WorldRecord } from "../game/history.ts"
 import { useGame } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
 import { isHistoryShown } from "./Almanac.tsx"
@@ -19,47 +20,43 @@ import { isHistoryShown } from "./Almanac.tsx"
 // Lives listed before "Show all"
 const RECENT_LIVES = 3
 
-// Blocks on the overview narrower than this (% of the axis) leave out their numeral
-const NUMERAL_MIN_WIDTH = 4
+// The reach chart's rows shrink as lives are added, to keep it about this
+// tall, but no thinner than ROW_MIN; below ROW_LABELS only every fifth life
+// keeps its numeral
+const CHART_HEIGHT = 240
+const ROW_MAX = 16
+const ROW_MIN = 6
+const ROW_LABELS = 12
 
-// Axis labels: every century, or every 200, 500, 1000, 2000... years, the
-// first that keeps them this few
-const MAX_TICKS = 6
-
-function getTickStep(years: number): number {
-    for (let scale = 100; ; scale *= 10) {
-        for (const step of [scale, 2 * scale, 5 * scale]) {
-            if (years / step <= MAX_TICKS) return step
-        }
-    }
-}
+// Where the "Furthest" label sits left of the marker rather than right of it (%)
+const LABEL_FLIP = 30
 
 function plural(count: number, one: string, many: string): string {
     return count + " " + (count == 1 ? one : many)
 }
 
-// The axis runs from the first life's waking to a little after now, so the
-// marker for now isn't on the edge
-export function getAxis(spans: LifeSpan[], today: number): {from: number, to: number} {
-    const from = Math.min(...spans.map(span => span.woke))
-    const end = Math.max(today, ...spans.map(span => span.ended))
-    const to = end + Math.max(DAYS_PER_YEAR, (end - from) * 0.015)
-    return {from, to}
+// The scale every bar and strip is drawn on: from 1200 to a round number of
+// years a little past the furthest date, and the step between its labels
+const NICE = [1, 2, 2.5, 5]
+const STEPS = [1, 2, 5, 10, 25, 50]
+const MAX_TICKS = 5
+
+export function getScale(furthest: number): {years: number, step: number} {
+    const needed = Math.max(20, (furthest - WAKE_DAY) / DAYS_PER_YEAR + 1)
+    let years = 0
+    for (let power = 1; years == 0; power *= 10) {
+        years = (NICE.map(nice => nice * power).find(nice => nice >= needed) ?? 0)
+    }
+    let step = 0
+    for (let power = 1; step == 0; power *= 100) {
+        step = STEPS.map(each => each * power).find(each => years / each <= MAX_TICKS) ?? 0
+    }
+    return {years, step}
 }
 
-// Round years for the axis labels, in world days, and where they fall (%)
-export function getTicks(from: number, to: number): {year: number, x: number}[] {
-    const firstYear = yearOf(from)
-    const years = Math.max(1, (to - from) / DAYS_PER_YEAR)
-    const step = getTickStep(years)
-    const ticks = []
-    for (let year = Math.ceil(firstYear / step) * step; ; year += step) {
-        const day = (year - calendar.epochYear) * DAYS_PER_YEAR
-        const x = (day - from) / (to - from) * 100
-        if (x > 92) break
-        if (x >= 0) ticks.push({year, x})
-    }
-    return ticks
+// The height of the reach chart's rows, in px, for this many lives
+export function getRowHeight(lives: number): number {
+    return Math.max(ROW_MIN, Math.min(ROW_MAX, Math.floor(CHART_HEIGHT / lives) - 2))
 }
 
 // A strip of Summers and Winters from one world day to another, as one
@@ -101,13 +98,11 @@ export function getEventSummary(found: EventOccurrence[]): string {
     return parts.join(" · ")
 }
 
-function endText(span: LifeSpan): string {
-    if (span.living) return "living, age " + span.age
-    return (span.end == "evil" ? "embraced evil at " : "touched the eye at ") + span.age
-}
-
-function yearsText(span: LifeSpan): string {
-    return yearOf(span.woke) + "–" + (span.living ? "now" : yearOf(span.ended))
+// "Touched the eye at 41 · furthest", "Living, age 34"
+function endText(span: LifeSpan, record: WorldRecord): string {
+    const text = span.living ? "Living, age " + span.age
+        : (span.end == "evil" ? "Embraced evil at " : "Touched the eye at ") + span.age
+    return text + (record.life == span.life ? " · furthest" : "")
 }
 
 export function Chronicle() {
@@ -115,49 +110,62 @@ export function Chronicle() {
     const [showAll, setShowAll] = useState(false)
     if (!isHistoryShown()) return null
 
-    const today = getWorldDay()
     const spans = getLifeSpans()
-    const {from, to} = getAxis(spans, today)
-    const firstYear = yearOf(from)
-    const years = yearOf(today) - firstYear
-    const rows = Math.max(...spans.map(span => span.row)) + 1
-    const toX = (day: number) => (day - from) / (to - from) * 100
+    const record = getRecord()
+    const scale = getScale(record.day)
+    const toX = (day: number) => (day - WAKE_DAY) / (scale.years * DAYS_PER_YEAR) * 100
+    const ticks = []
+    for (let year = 0; year < scale.years; year += scale.step) ticks.push(year)
 
     const newestFirst = [...spans].reverse()
     const listed = showAll ? newestFirst : newestFirst.slice(0, RECENT_LIVES)
+    const rowHeight = getRowHeight(spans.length)
+    const furthestX = toX(record.day)
+    const holder = spans.find(span => span.life == record.life)
+    const lives = plural(spans.length, "life", "lives")
 
     return (
         <section id="chronicle" className="settings-card settings-wide chronicle" aria-labelledby="chronicleLabel">
             <div className="settings-line">
                 <h2 id="chronicleLabel" tabIndex={-1}>Chronicle</h2>
                 <span className="settings-note chronicle-summary">
-                    {plural(spans.length, "life", "lives") + " · " + firstYear + " to now · " + plural(years, "year", "years")}
+                    {lives + " · furthest " + reachedText(record.day) + " (age " + record.age + ")"}
                 </span>
             </div>
-            <p className="settings-help">Every life you have lived, on the world’s calendar. Each wakes at 14 in Summer {firstYear}.</p>
+            <p className="settings-help">Every life begins in {reachedText(WAKE_DAY)}. Live longer to see more of the world.</p>
 
             <div className="chronicle-overview">
-                <div className="chronicle-axis" role="img" aria-label={plural(spans.length, "life", "lives") + " from " + firstYear + " to now"}
-                    style={{"--rows": rows} as CSSProperties}>
-                    <span aria-hidden="true" className="chronicle-baseline"></span>
-                    {spans.map(span => {
-                        const width = toX(span.ended) - toX(span.woke)
-                        return (
-                            <span key={span.life} aria-hidden="true" title={"Life " + toRoman(span.life) + ", " + yearsText(span)}
-                                className={classNames("chronicle-block", span.living && "chronicle-block-now")}
-                                style={{left: toX(span.woke) + "%", width: width + "%", "--row": span.row} as CSSProperties}>
-                                {width >= NUMERAL_MIN_WIDTH ? toRoman(span.life) : ""}
+                <div className={classNames("chronicle-reach", rowHeight < ROW_LABELS && "chronicle-reach-dense")} role="img"
+                    aria-label={lives + ", each a bar from " + reachedText(WAKE_DAY) + " to the date it reached. The furthest"
+                        + (holder ? ", life " + toRoman(holder.life) + "," : "") + " reached " + reachedText(record.day) + "."}
+                    style={{"--row-height": rowHeight + "px"} as CSSProperties}>
+                    {newestFirst.map(span => (
+                        <div key={span.life} className="chronicle-reach-row"
+                            title={"Life " + toRoman(span.life) + ": " + endText(span, record) + ", " + (span.living ? "now in " : "reached ") + reachedText(span.ended)}>
+                            <span aria-hidden="true" className={classNames("chronicle-numeral", span.life % 5 == 0 && "chronicle-numeral-fifth")}>{toRoman(span.life)}</span>
+                            <span className="chronicle-bar-track">
+                                <span className={classNames("chronicle-bar", span.living ? "chronicle-bar-now" : span.end == "evil" && "chronicle-bar-evil")}
+                                    style={{width: toX(span.ended) + "%"}}></span>
                             </span>
-                        )
-                    })}
-                    <span aria-hidden="true" className="chronicle-now" style={{left: toX(today) + "%"}}></span>
+                        </div>
+                    ))}
+                    <div aria-hidden="true" className="chronicle-marks">
+                        <span className="chronicle-furthest" style={{left: furthestX + "%"}}></span>
+                        <span className={classNames("chronicle-furthest-label", furthestX < LABEL_FLIP && "chronicle-furthest-label-right")}
+                            style={furthestX < LABEL_FLIP ? {left: furthestX + "%"} : {right: (100 - furthestX) + "%"}}>
+                            {"Furthest · " + reachedText(record.day)}
+                        </span>
+                    </div>
                 </div>
                 <div aria-hidden="true" className="chronicle-ticks">
-                    {getTicks(from, to).map(tick => <span key={tick.year} style={{left: tick.x + "%"}}>{tick.year}</span>)}
+                    {ticks.map(year => <span key={year} style={{left: year / scale.years * 100 + "%"}}>{calendar.epochYear + year}</span>)}
                 </div>
             </div>
 
             <div className="chronicle-legend">
+                <span><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar"></span>Life</span>
+                <span><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar-evil"></span>Ended in evil</span>
+                <span><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar-now"></span>This life</span>
                 {calendar.seasons.map(season => (
                     <span key={season.id}><span aria-hidden="true" className="chronicle-swatch" style={{backgroundColor: "var(--pk-stripe-" + season.id + ")"}}></span>{season.name}</span>
                 ))}
@@ -173,10 +181,10 @@ export function Chronicle() {
                         <div className="chronicle-life">
                             <span className="chronicle-title">
                                 <strong>{"Life " + span.life + (span.living ? " · now" : "")}</strong>
-                                <span className="settings-note">{"Born " + yearOf(span.born) + " · " + endText(span)}</span>
+                                <span className="settings-note">{endText(span, record)}</span>
                             </span>
-                            <LifeStrip span={span} />
-                            <span className={classNames("chronicle-years", span.living && "chronicle-years-now")}>{yearsText(span)}</span>
+                            <LifeStrip span={span} width={toX(span.ended)} />
+                            <span className={classNames("chronicle-years", span.living && "chronicle-years-now")}>{span.living ? "now" : reachedText(span.ended)}</span>
                         </div>
                     </li>
                 ))}
@@ -192,15 +200,15 @@ export function Chronicle() {
 
 // A life's Summers and Winters, a lane above them marking each event it lived
 // through (rare ones in gold), and a line naming them
-function LifeStrip({span}: {span: LifeSpan}) {
+function LifeStrip({span, width}: {span: LifeSpan, width: number}) {
     const found = getLifeEvents(span)
     const length = Math.max(1, span.ended - span.woke)
-    const label = plural(Math.floor((span.ended - span.woke) / DAYS_PER_YEAR), "year", "years") + " of Summers and Winters"
-        + (found.length ? ", " + plural(found.length, "event", "events") : "")
+    const label = plural(Math.floor((span.ended - span.woke) / DAYS_PER_YEAR), "year", "years") + " of Summers and Winters, from "
+        + reachedText(span.woke) + " to " + reachedText(span.ended) + (found.length ? ", " + plural(found.length, "event", "events") : "")
     const summary = getEventSummary(found)
     return (
         <span className="chronicle-middle">
-            <span className="chronicle-track" role="img" aria-label={label}>
+            <span className="chronicle-track" role="img" aria-label={label} style={{width: width + "%"}}>
                 {found.length > 0 && (
                     <span className="chronicle-lane">
                         {found.map(occurrence => {

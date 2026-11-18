@@ -1,10 +1,10 @@
-// The world's history: lives as spans of world days, for the Chronicle and
-// the past lives table.
+// The world's history: lives as spans of world days, and the record, for the
+// Chronicle, the Almanac and the past lives table.
 
 import { test } from "vitest"
 import assert from "node:assert/strict"
 import { loadEngine } from "./helpers/engine.js"
-import { assignRows, toRoman } from "../src/game/history.ts"
+import { toRoman } from "../src/game/history.ts"
 
 const YEAR = 365
 
@@ -15,10 +15,8 @@ test("a new game's history is the life being lived, woken on day 0", async () =>
     assert.equal(span.life, 1)
     assert.equal(span.living, true)
     assert.equal(span.end, null)
-    assert.equal(span.born, -14 * YEAR)
     assert.equal(span.woke, 0)
     assert.equal(span.ended, game.api.getWorldDay())
-    assert.equal(span.row, 0)
 })
 
 test("every life wakes on the same day and ends where its age took it", async () => {
@@ -30,22 +28,11 @@ test("every life wakes on the same day and ends where its age took it", async ()
     game.api.rebirthTwo()
     gameData.days = 20 * YEAR
     const spans = game.api.getLifeSpans()
-    assert.deepEqual(spans.map(span => [span.life, span.end, span.age, span.living, span.row]),
-        [[1, "rebirth", 66, false, 0], [2, "evil", 41, false, 1], [3, null, 20, true, 2]])
-    assert.deepEqual(spans.map(span => [span.born / YEAR, span.woke / YEAR, span.ended / YEAR]), [[-14, 0, 52], [-14, 0, 27], [-14, 0, 6]])
+    assert.deepEqual(spans.map(span => [span.life, span.end, span.age, span.living]),
+        [[1, "rebirth", 66, false], [2, "evil", 41, false], [3, null, 20, true]])
+    assert.deepEqual(spans.map(span => [span.woke / YEAR, span.ended / YEAR]), [[0, 52], [0, 27], [0, 6]])
     assert.equal(game.api.yearOf(spans[2].ended), 1206)
     assert.equal(game.api.nextWakeDay(), 0, "the next life wakes on the same day")
-})
-
-test("lives are ordered by date, and overlapping ones get rows of their own", async () => {
-    const spans = assignRows([
-        { woke: 0, ended: 50, row: 0 },
-        { woke: 30, ended: 60, row: 0 },
-        { woke: 50, ended: 70, row: 0 },
-        { woke: 55, ended: 58, row: 0 },
-        { woke: 100, ended: 120, row: 0 },
-    ])
-    assert.deepEqual(spans.map(span => span.row), [0, 1, 0, 2, 0])
 })
 
 test("the history copes with fifty lives", async () => {
@@ -59,7 +46,7 @@ test("the history copes with fifty lives", async () => {
     assert.equal(spans.length, 51)
     assert.equal(spans[0].life, 11)
     assert.equal(spans[50].life, 61)
-    assert.deepEqual(spans.map(span => span.row), Array.from({ length: 51 }, (_, i) => i), "every life shares the start")
+    assert.ok(spans.every(span => span.woke == 0), "every life shares the start")
     assert.equal(game.api.yearOf(spans[49].ended), 1305, "life 60 touched the eye at 119")
 })
 
