@@ -2,13 +2,12 @@
   {
     "ticks": 102199,
     "age": 70,
-    "coins": 1489624,
+    "coins": 1481675,
     "job": "Blacksmith",
-    "skill": "Battle tactics",
-    "property": "Tent",
+    "skill": "Meditation",
+    "property": "Wooden hut",
     "misc": [
-      "Book",
-      "Dumbbells"
+      "Book"
     ],
     "tasks": {
       "Beggar": [
@@ -44,11 +43,11 @@
         0
       ],
       "Meditation": [
-        39,
+        38,
         0
       ],
       "Strength": [
-        39,
+        38,
         0
       ],
       "Battle tactics": [
@@ -64,9 +63,9 @@
   {
     "ticks": 102200,
     "age": 70,
-    "coins": 3521424,
+    "coins": 3520760,
     "job": "Merchant",
-    "skill": "Meditation",
+    "skill": "Productivity",
     "property": "Wooden hut",
     "misc": [
       "Book",
@@ -102,20 +101,20 @@
         39
       ],
       "Productivity": [
-        112,
+        111,
         39
       ],
       "Bargaining": [
-        112,
+        111,
         39
       ],
       "Meditation": [
         111,
-        39
+        38
       ],
       "Strength": [
         111,
-        39
+        38
       ],
       "Battle tactics": [
         111,

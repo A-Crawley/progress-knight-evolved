@@ -173,13 +173,13 @@ test("each life marks the events it lived through, rare ones in gold, and names 
     game.rerender()
     const [, first] = section().querySelectorAll(".chronicle-life")
     assert.equal(squash(first.querySelector(".chronicle-events")),
-        "Arcane Conjunction 1200, 1207, 1214, 1221, 1228, 1235, 1242, 1249 · 12 Hard Winters")
+        "Arcane Conjunction 1205, 1212, 1219, 1226, 1233, 1240, 1247, 1254 · 11 Hard Winters")
     const marks = [...first.querySelectorAll(".chronicle-event")]
-    assert.equal(marks.length, 8 + 12)
+    assert.equal(marks.length, 8 + 11)
     assert.equal(marks.filter(mark => mark.classList.contains("chronicle-rare")).length, 8)
-    // The first, Hard Winter 1200, runs from day 183 to 365 of a 56-year life
-    assert.equal(marks[0].style.left, 183 / (56 * 365) * 100 + "%")
-    assert.equal(first.querySelector(".chronicle-track").getAttribute("aria-label"), "56 years of Summers and Winters, from Summer 1200 to Summer 1256, 20 events")
+    // The first, Hard Winter 1203, starts 3 years and 183 days into a 56-year life
+    assert.equal(marks[0].style.left, (3 * 365 + 183) / (56 * 365) * 100 + "%")
+    assert.equal(first.querySelector(".chronicle-track").getAttribute("aria-label"), "56 years of Summers and Winters, from Summer 1200 to Summer 1256, 19 events")
     assert.deepEqual(legend(), ["Life", "Ended in evil", "This life", "Summer", "Winter", "Event (a season)", "Rare event"])
 })
 
@@ -188,9 +188,9 @@ test("the life being lived counts the events that have begun, one alone by name"
     unlock(game, "Shop")
     game.gameData.days = 25 * 365
     game.ticks(1)
-    // 1200 to 1211: Hard Winters in 1200, 1205 and 1210
-    assert.equal(squash(section().querySelector(".chronicle-events")), "3 Hard Winters")
-    game.gameData.days = 14 * 365 + 200
+    // 1200 to 1211: Hard Winters in 1203 and 1208
+    assert.equal(squash(section().querySelector(".chronicle-events")), "2 Hard Winters")
+    game.gameData.days = 17 * 365 + 200 // Winter 1203
     game.rerender()
     assert.equal(squash(section().querySelector(".chronicle-events")), "Hard Winter")
 })
