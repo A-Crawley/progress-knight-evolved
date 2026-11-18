@@ -2612,6 +2612,11 @@ body.effects-off .fx-anim::after {
     min-height: 3px;
 }
 
+/* Dense rows give the bar all but a pixel of their height */
+.chronicle-reach-dense .chronicle-bar-track {
+    height: calc(var(--row-height) - 1px);
+}
+
 .chronicle-bar-track .chronicle-bar {
     position: absolute;
     top: 0;
