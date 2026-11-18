@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "bot": "node tools/bot/run.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
