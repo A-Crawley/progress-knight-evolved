@@ -376,6 +376,7 @@ function recordLife(end: LifeEnd, evil: number): void {
         life: gameData.rebirthOneCount + gameData.rebirthTwoCount + 1,
         end: end,
         age: daysToYears(gameData.days),
+        days: gameData.days,
         job: getBestOfLife(Job),
         skill: getBestOfLife(Skill),
         peakCoins: getLifePeakCoins(),

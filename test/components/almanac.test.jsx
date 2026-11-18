@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 // The Almanac in the sidebar: today's date, the days to the next season, the
-// season's bar and the way to the Chronicle.
+// season's bar, the record and the way to the Chronicle.
 
 import { test } from "vitest"
 import assert from "node:assert/strict"
@@ -47,6 +47,45 @@ test("today's date, the days to the next season and how far through this one", a
     assert.equal(squash(card().querySelector(".almanac-next")), "1 day to Summer")
     assert.equal(card().querySelector(".almanac-bar").getAttribute("aria-label"), "Winter, day 182 of 182")
     assert.equal(card().querySelector(".almanac-bar").firstChild.style.backgroundColor, "var(--pk-season-winter)")
+})
+
+const record = () => card().querySelector(".almanac-record")
+
+test("the record line names the furthest date, the life that reached it and its age", async () => {
+    const game = await renderComponent("Almanac.tsx", "Almanac", { onOpenChronicle() {} })
+    game.gameData.days = 25 * YEAR
+    game.rerender()
+    assert.equal(record(), null, "a first life has nothing to beat")
+
+    for (const age of [41, 70]) {
+        game.gameData.days = age * YEAR
+        game.engine.rebirthOne()
+    }
+    game.gameData.days = 110 * YEAR + 300
+    game.engine.rebirthTwo()
+    game.gameData.days = 34 * YEAR
+    game.rerender()
+    // Life III ended at 110, 300 days into its year: Winter 1296
+    assert.equal(squash(record()), "Furthest: Winter 1296 life III, age 110")
+    assert.ok(!record().classList.contains("almanac-record-new"))
+
+    game.gameData.lives.splice(0, 3)
+    game.rerender()
+    assert.equal(squash(record()), "Furthest: Winter 1296 age 110", "the life that set it was dropped")
+})
+
+test("once this life passes the record it reads New furthest, in the gain colour", async () => {
+    const game = await renderComponent("Almanac.tsx", "Almanac", { onOpenChronicle() {} })
+    game.gameData.days = 110 * YEAR + 300
+    game.engine.rebirthOne()
+    game.gameData.days = 110 * YEAR + 200
+    game.rerender()
+    assert.equal(squash(record()), "Furthest: Winter 1296 life I, age 110", "not passed yet")
+
+    game.gameData.days = 114 * YEAR + 195
+    game.rerender()
+    assert.equal(squash(record()), "New furthest past Winter 1296")
+    assert.ok(record().classList.contains("almanac-record-new"))
 })
 
 test("the link asks for the Chronicle", async () => {

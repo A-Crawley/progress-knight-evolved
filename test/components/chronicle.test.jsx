@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
-// The Chronicle in the Settings tab: every life on the world's calendar, as
-// an overview on one axis and a list with a strip of seasons per life.
+// The Chronicle in the Settings tab: how far every life reached, as a reach
+// chart with the record marked, and a list with a strip of seasons per life
+// on the same scale.
 
 import { test } from "vitest"
 import assert from "node:assert/strict"
 import { fireEvent, screen } from "@testing-library/react"
 import { renderComponent } from "../helpers/react.js"
-import { getStripStyle, getTicks } from "../../src/ui/Chronicle.tsx"
+import { getRowHeight, getScale, getStripStyle } from "../../src/ui/Chronicle.tsx"
 
 const YEAR = 365
 const section = () => document.getElementById("chronicle")
@@ -16,6 +17,9 @@ const squash = element => element.textContent.replace(/\s+/g, " ").trim()
 const parts = row => [...row.querySelectorAll(":scope > *, :scope > .chronicle-title > *")]
     .filter(part => !part.classList.contains("chronicle-title")).map(squash).filter(Boolean).join(" ")
 const lifeRows = () => [...section().querySelectorAll(".chronicle-life")].map(parts)
+const summary = () => squash(section().querySelector(".chronicle-summary"))
+const chart = () => section().querySelector(".chronicle-reach")
+const legend = () => [...section().querySelectorAll(".chronicle-legend > span")].map(squash)
 
 // Lives that end at these ages, then a living one at 32
 async function withLives(ages, { evilAt = [] } = {}) {
@@ -35,75 +39,112 @@ test("a new game has no Chronicle until the Amulet tab appears", async () => {
     game.gameData.days = 25 * YEAR
     game.ticks(1)
     assert.ok(section())
-    assert.equal(squash(section().querySelector(".chronicle-summary")), "1 life · 1200 to now · 11 years")
+    assert.equal(summary(), "1 life · furthest Summer 1211 (age 25)")
+    assert.equal(squash(section().querySelector(".settings-help")), "Every life begins in Summer 1200. Live longer to see more of the world.")
 })
 
-test("the summary, and the newest three lives, each woken in 1200", async () => {
+test("the summary, and the newest three lives with the date each reached", async () => {
     await withLives([41, 70, 52, 66, 82], { evilAt: [52] })
     assert.equal(squash(screen.getByRole("heading", { name: "Chronicle" })), "Chronicle")
-    // This life is 32, so it is 1218
-    assert.equal(squash(section().querySelector(".chronicle-summary")), "6 lives · 1200 to now · 18 years")
+    assert.equal(summary(), "6 lives · furthest Summer 1268 (age 82)")
     assert.deepEqual(lifeRows(), [
-        "Life 6 · now Born 1186 · living, age 32 1200–now",
-        "Life 5 Born 1186 · touched the eye at 82 1200–1268",
-        "Life 4 Born 1186 · touched the eye at 66 1200–1252",
+        "Life 6 · now Living, age 32 now",
+        "Life 5 Touched the eye at 82 · furthest Summer 1268",
+        "Life 4 Touched the eye at 66 Summer 1252",
     ])
-    assert.equal(section().querySelector(".chronicle-gap"), null, "no years between lives")
+    assert.equal(section().querySelector(".chronicle-gap"), null, "no growing-up rows")
     assert.ok(section().querySelector(".chronicle-life .chronicle-years-now"))
 
     const more = screen.getByRole("button", { name: "Show all 6 lives" })
     assert.equal(more.getAttribute("aria-expanded"), "false")
     fireEvent.click(more)
     assert.equal(lifeRows().length, 6)
-    assert.equal(lifeRows()[3], "Life 3 Born 1186 · embraced evil at 52 1200–1238")
-    assert.equal(lifeRows()[5], "Life 1 Born 1186 · touched the eye at 41 1200–1227")
+    assert.equal(lifeRows()[3], "Life 3 Embraced evil at 52 Summer 1238")
+    assert.equal(lifeRows()[5], "Life 1 Touched the eye at 41 Summer 1227")
     fireEvent.click(screen.getByRole("button", { name: "Show recent lives" }))
     assert.equal(lifeRows().length, 3)
 })
 
-test("the life being lived updates as time passes", async () => {
+test("the life being lived updates, and takes the record once it passes it", async () => {
     const game = await withLives([70])
-    assert.match(lifeRows()[0], /living, age 32 1200–now$/)
+    assert.equal(lifeRows()[0], "Life 2 · now Living, age 32 now")
     game.gameData.days = 40 * YEAR
     game.rerender()
-    assert.match(lifeRows()[0], /living, age 40 1200–now$/)
-    assert.equal(squash(section().querySelector(".chronicle-summary")), "2 lives · 1200 to now · 26 years")
+    assert.equal(lifeRows()[0], "Life 2 · now Living, age 40 now")
+    assert.equal(summary(), "2 lives · furthest Summer 1256 (age 70)")
+
+    game.gameData.days = 75 * YEAR + 200
+    game.rerender()
+    assert.equal(summary(), "2 lives · furthest Winter 1261 (age 75)")
+    assert.deepEqual(lifeRows(), ["Life 2 · now Living, age 75 · furthest now", "Life 1 Touched the eye at 70 Summer 1256"])
 })
 
-test("the overview puts every life on one axis, with the century and now", async () => {
-    await withLives([41, 70, 52])
-    const axis = section().querySelector(".chronicle-axis")
-    assert.equal(axis.getAttribute("role"), "img")
-    assert.equal(axis.getAttribute("aria-label"), "4 lives from 1200 to now")
-    const blocks = [...axis.querySelectorAll(".chronicle-block")]
-    assert.deepEqual(blocks.map(block => block.textContent), ["I", "II", "III", "IV"])
-    assert.ok(blocks[3].classList.contains("chronicle-block-now"))
-    assert.equal(blocks[0].style.left, "0%")
-    assert.ok(blocks.every(block => block.style.left == "0%"), "every life starts in 1200")
-    assert.equal(blocks[1].title, "Life II, 1200–1256")
-    assert.ok(parseFloat(axis.querySelector(".chronicle-now").style.left) < 100)
-    assert.deepEqual([...section().querySelectorAll(".chronicle-ticks span")].map(tick => tick.textContent), ["1200"])
-    assert.deepEqual([...section().querySelectorAll(".chronicle-legend > span")].map(squash), ["Summer", "Winter"])
+test("the reach chart gives every life a bar from 1200, newest first, with the record marked", async () => {
+    await withLives([41, 70, 52], { evilAt: [52] })
+    assert.equal(chart().getAttribute("role"), "img")
+    assert.equal(chart().getAttribute("aria-label"),
+        "4 lives, each a bar from Summer 1200 to the date it reached. The furthest, life II, reached Summer 1256.")
+    const rows = [...chart().querySelectorAll(".chronicle-reach-row")]
+    assert.deepEqual(rows.map(row => squash(row.querySelector(".chronicle-numeral"))), ["IV", "III", "II", "I"])
+    const bars = rows.map(row => row.querySelector(".chronicle-bar"))
+    // 56 years on a 100-year scale
+    assert.deepEqual(bars.map(bar => Math.round(parseFloat(bar.style.width))), [18, 38, 56, 27])
+    assert.ok(bars[0].classList.contains("chronicle-bar-now"))
+    assert.ok(bars[1].classList.contains("chronicle-bar-evil"))
+    assert.ok(!bars[2].classList.contains("chronicle-bar-evil") && !bars[2].classList.contains("chronicle-bar-now"))
+    assert.equal(rows[2].title, "Life II: Touched the eye at 70 · furthest, reached Summer 1256")
+    assert.equal(rows[0].title, "Life IV: Living, age 32, now in Summer 1218")
+
+    assert.equal(Math.round(parseFloat(section().querySelector(".chronicle-furthest").style.left)), 56)
+    assert.equal(squash(section().querySelector(".chronicle-furthest-label")), "Furthest · Summer 1256")
+    assert.deepEqual([...section().querySelectorAll(".chronicle-ticks span")].map(squash), ["1200", "1225", "1250", "1275"])
+    assert.deepEqual(legend(), ["Life", "Ended in evil", "This life", "Summer", "Winter"])
 })
 
-test("lives share their start, so each is stacked in a row of its own", async () => {
-    await withLives([70])
-    const axis = section().querySelector(".chronicle-axis")
-    assert.equal(axis.style.getPropertyValue("--rows"), "2")
-    assert.deepEqual([...axis.querySelectorAll(".chronicle-block")].map(block => block.style.getPropertyValue("--row")), ["0", "1"])
+test("the list draws each life's strip on the reach chart's scale", async () => {
+    await withLives([41, 70])
+    const widths = [...section().querySelectorAll(".chronicle-track")].map(track => Math.round(parseFloat(track.style.width)))
+    assert.deepEqual(widths, [18, 56, 27])
 })
 
-test("axis labels space out over long histories, and narrow lives drop their numerals", async () => {
-    assert.deepEqual(getTicks(0, 340 * YEAR).map(tick => tick.year), [1200, 1300, 1400, 1500])
-    assert.deepEqual(getTicks(0, 3000 * YEAR).map(tick => tick.year), [1500, 2000, 2500, 3000, 3500])
-    assert.deepEqual(getTicks(0, 6000 * YEAR).map(tick => tick.year), [2000, 3000, 4000, 5000, 6000])
-    for (const span of [10, 340, 3000, 60000, 6e6]) assert.ok(getTicks(0, span * YEAR).length <= 6, String(span))
+test("a record set by a life since dropped still shows, with no life named", async () => {
+    const game = await withLives([70])
+    game.gameData.furthestDay = 96 * YEAR + 300
+    game.rerender()
+    assert.equal(summary(), "2 lives · furthest Winter 1296 (age 110)")
+    assert.match(chart().getAttribute("aria-label"), / The furthest reached Winter 1296\.$/)
+    assert.ok(lifeRows().every(row => !row.includes("furthest")))
+    assert.equal(squash(section().querySelector(".chronicle-furthest-label")), "Furthest · Winter 1296")
+})
+
+test("the scale is round years a little past the record, with at most five labels", async () => {
+    assert.deepEqual(getScale(0), { years: 20, step: 5 })
+    assert.deepEqual(getScale(18 * YEAR), { years: 20, step: 5 })
+    assert.deepEqual(getScale(56 * YEAR), { years: 100, step: 25 })
+    assert.deepEqual(getScale(96.8 * YEAR), { years: 100, step: 25 })
+    assert.deepEqual(getScale(99.5 * YEAR), { years: 200, step: 50 })
+    assert.deepEqual(getScale(186 * YEAR), { years: 200, step: 50 })
+    assert.deepEqual(getScale(3000 * YEAR), { years: 5000, step: 1000 })
+    for (const years of [0, 10, 56, 340, 3000, 60000, 6e6]) {
+        const scale = getScale(years * YEAR)
+        assert.ok(scale.years > years && scale.years / scale.step <= 5, String(years))
+    }
+})
+
+test("fifty lives and long reaches fit without scrolling: rows thin out, and numerals with them", async () => {
+    assert.equal(getRowHeight(1), 16)
+    assert.equal(getRowHeight(6), 16)
+    assert.equal(getRowHeight(20), 10)
+    assert.equal(getRowHeight(51), 6)
 
     const game = await withLives([...Array.from({ length: 54 }, (_, i) => 40 + (i * 7) % 160), 15])
-    const blocks = [...section().querySelectorAll(".chronicle-block")]
-    assert.equal(blocks.length, 51)
-    assert.ok(blocks.some(block => block.textContent == ""), "narrow blocks leave out their numeral")
-    assert.match(squash(section().querySelector(".chronicle-summary")), /^51 lives · \d+ to now · \d+ years$/)
+    const rows = [...chart().querySelectorAll(".chronicle-reach-row")]
+    assert.equal(rows.length, 51)
+    assert.ok(chart().classList.contains("chronicle-reach-dense"))
+    assert.equal(chart().style.getPropertyValue("--row-height"), "6px")
+    assert.equal(rows.filter(row => row.querySelector(".chronicle-numeral-fifth")).length, 10, "every fifth life keeps its numeral")
+    assert.ok(rows.every(row => parseFloat(row.querySelector(".chronicle-bar").style.width) <= 100))
+    assert.match(summary(), /^51 lives · furthest (Summer|Winter) \d+ \(age \d+\)$/)
     assert.equal(game.errors?.length ?? 0, 0)
 })
 
@@ -116,7 +157,7 @@ test("each strip starts on the right day of the year", async () => {
     await withLives([41])
     const strip = section().querySelector(".chronicle-track")
     assert.equal(strip.getAttribute("role"), "img")
-    assert.equal(strip.getAttribute("aria-label"), "18 years of Summers and Winters")
+    assert.equal(strip.getAttribute("aria-label"), "18 years of Summers and Winters, from Summer 1200 to Summer 1218")
 })
 
 const unlock = (game, ...names) => { for (const name of names) game.gameData.requirements[name].completed = true }
@@ -126,7 +167,7 @@ test("each life marks the events it lived through, rare ones in gold, and names 
     // Life 1 woke in 1200 and touched the eye at 70, in 1256
     assert.equal(section().querySelector(".chronicle-lane"), null, "no events before they are unlocked")
     assert.equal(section().querySelector(".chronicle-events"), null)
-    assert.deepEqual([...section().querySelectorAll(".chronicle-legend > span")].map(squash), ["Summer", "Winter"])
+    assert.deepEqual(legend(), ["Life", "Ended in evil", "This life", "Summer", "Winter"])
 
     unlock(game, "Shop", "Arcane glimpse")
     game.rerender()
@@ -138,9 +179,8 @@ test("each life marks the events it lived through, rare ones in gold, and names 
     assert.equal(marks.filter(mark => mark.classList.contains("chronicle-rare")).length, 8)
     // The first, Hard Winter 1200, runs from day 183 to 365 of a 56-year life
     assert.equal(marks[0].style.left, 183 / (56 * 365) * 100 + "%")
-    assert.equal(first.querySelector(".chronicle-track").getAttribute("aria-label"), "56 years of Summers and Winters, 20 events")
-    assert.deepEqual([...section().querySelectorAll(".chronicle-legend > span")].map(squash),
-        ["Summer", "Winter", "Event (a season)", "Rare event"])
+    assert.equal(first.querySelector(".chronicle-track").getAttribute("aria-label"), "56 years of Summers and Winters, from Summer 1200 to Summer 1256, 20 events")
+    assert.deepEqual(legend(), ["Life", "Ended in evil", "This life", "Summer", "Winter", "Event (a season)", "Rare event"])
 })
 
 test("the life being lived counts the events that have begun, one alone by name", async () => {

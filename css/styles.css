@@ -2168,7 +2168,7 @@ body.effects-off .fx-anim::after {
 
 .past-row {
     display: grid;
-    grid-template-columns: 56px 96px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.6fr);
+    grid-template-columns: 56px 170px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.6fr);
     column-gap: var(--pk-space-4);
     align-items: center;
     padding: 10px var(--pk-space-3);
@@ -2200,13 +2200,36 @@ body.effects-off .fx-anim::after {
     color: var(--pk-text-muted);
 }
 
-.past-years {
+.past-reached {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pk-space-2);
     white-space: nowrap;
+    font-weight: 500;
     color: var(--pk-text-muted);
 }
 
-.past-living .past-years {
+.past-living .past-reached {
     color: var(--pk-accent-text);
+}
+
+/* The record row: its date in full text colour, and a badge */
+.past-row:has(.past-furthest) .past-reached {
+    color: var(--pk-text);
+}
+
+.past-furthest {
+    padding: 1px 6px;
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-accent);
+    color: var(--pk-on-accent);
+    font-size: var(--pk-text-xs);
+    font-weight: 700;
+}
+
+.past-note {
+    margin: 0;
+    padding: 0 var(--pk-space-3);
 }
 
 /* On desktop the detail wrapper only groups; its cells are grid columns */
@@ -2231,7 +2254,7 @@ body.effects-off .fx-anim::after {
         padding: var(--pk-space-3);
     }
 
-    .past-years {
+    .past-reached {
         font-size: var(--pk-text-xs);
     }
 
@@ -2527,53 +2550,130 @@ body.effects-off .fx-anim::after {
     gap: var(--pk-space-1);
 }
 
-/* One row of blocks per set of overlapping lives */
-.chronicle-axis {
+/* The reach chart: a row per life, newest first, each a bar from 1200 to the
+   date it reached on a faint band for the scale, with the record marked.
+   Rows thin out as lives are added; dense charts keep every fifth numeral. */
+.chronicle-reach {
+    --numeral-width: 32px;
+    --numeral-gap: 8px;
     position: relative;
-    height: calc(var(--rows, 1) * 24px + 4px);
-}
-
-.chronicle-baseline {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 14px;
-    border-top: 1px dashed var(--pk-line);
-}
-
-.chronicle-block {
-    position: absolute;
-    top: calc(4px + var(--row, 0) * 24px);
-    height: 20px;
-    min-width: 2px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    flex-direction: column;
+    gap: 2px;
+    padding: 24px 0 8px;
+}
+
+.chronicle-reach::before {
+    content: "";
+    position: absolute;
+    top: 18px;
+    bottom: 0;
+    left: calc(var(--numeral-width) + var(--numeral-gap));
+    right: 0;
     border-radius: 2px;
-    background-color: var(--pk-line);
-    color: var(--pk-text-secondary);
+    background-color: color-mix(in srgb, var(--pk-text) 3.5%, transparent);
+}
+
+.chronicle-reach-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--numeral-width) minmax(0, 1fr);
+    column-gap: var(--numeral-gap);
+    align-items: center;
+    height: var(--row-height, 16px);
+}
+
+.chronicle-numeral {
     font-size: var(--pk-text-xs);
     font-weight: 600;
+    line-height: 1;
+    text-align: right;
     white-space: nowrap;
+    color: var(--pk-text-muted);
 }
 
-.chronicle-block-now {
-    background-color: color-mix(in srgb, var(--pk-accent) calc(var(--pk-bar-tint) + 5%), var(--pk-raised));
+.chronicle-reach-row:first-child .chronicle-numeral {
     color: var(--pk-text);
 }
 
-.chronicle-now {
+.chronicle-reach-dense .chronicle-numeral {
+    visibility: hidden;
+    font-size: 10px;
+}
+
+.chronicle-reach-dense .chronicle-numeral-fifth,
+.chronicle-reach-dense .chronicle-reach-row:first-child .chronicle-numeral {
+    visibility: visible;
+}
+
+.chronicle-bar-track {
+    position: relative;
+    height: calc(var(--row-height, 16px) - 4px);
+    min-height: 3px;
+}
+
+/* Dense rows give the bar all but a pixel of their height */
+.chronicle-reach-dense .chronicle-bar-track {
+    height: calc(var(--row-height) - 1px);
+}
+
+.chronicle-bar-track .chronicle-bar {
     position: absolute;
     top: 0;
+    bottom: 0;
+    left: 0;
+    min-width: 2px;
+    border-radius: 2px;
+}
+
+.chronicle-bar {
+    background-color: var(--pk-line);
+}
+
+.chronicle-bar-evil {
+    background-color: color-mix(in srgb, var(--pk-cat-dark-magic) 70%, transparent);
+}
+
+.chronicle-bar-now {
+    background-color: color-mix(in srgb, var(--pk-accent) calc(var(--pk-bar-tint) + 15%), var(--pk-raised));
+}
+
+.chronicle-marks {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--numeral-width) + var(--numeral-gap));
+    right: 0;
+    pointer-events: none;
+}
+
+.chronicle-furthest {
+    position: absolute;
+    top: 18px;
     bottom: 0;
     width: 2px;
     background-color: var(--pk-accent);
 }
 
+.chronicle-furthest-label {
+    position: absolute;
+    top: 0;
+    padding-right: 6px;
+    font-size: var(--pk-text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--pk-accent-text);
+}
+
+.chronicle-furthest-label-right {
+    padding-right: 0;
+    padding-left: 6px;
+}
+
 .chronicle-ticks {
     position: relative;
     height: 18px;
+    margin-left: 40px;
     font-size: var(--pk-text-xs);
     color: var(--pk-text-muted);
 }
@@ -2599,6 +2699,11 @@ body.effects-off .fx-anim::after {
 .chronicle-swatch {
     width: 10px;
     height: 10px;
+}
+
+.chronicle-swatch-bar {
+    width: 14px;
+    border-radius: 2px;
 }
 
 .chronicle-list {
@@ -2644,10 +2749,12 @@ body.effects-off .fx-anim::after {
     min-width: 0;
 }
 
+/* As wide as the life reached, on the reach chart's scale */
 .chronicle-track {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 4px;
 }
 
 .chronicle-strip {
@@ -2706,7 +2813,7 @@ body.effects-off .fx-anim::after {
 
 @media (min-width: 640px) {
     .chronicle-life {
-        grid-template-columns: 200px minmax(0, 1fr) 100px;
+        grid-template-columns: 200px minmax(0, 1fr) 110px;
         grid-template-areas: "title strip years";
     }
 }
@@ -2786,6 +2893,16 @@ body.effects-off .fx-anim::after {
     gap: 2px var(--pk-space-3);
     font-size: var(--pk-text-xs);
     font-weight: 600;
+}
+
+/* The record: the date in the secondary colour, or "New furthest" in the gain colour */
+.almanac-record strong {
+    font-weight: 600;
+    color: var(--pk-text-secondary);
+}
+
+.almanac-record-new strong {
+    color: var(--pk-gain-text);
 }
 
 .almanac-next-event strong {
