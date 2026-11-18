@@ -125,13 +125,33 @@ export interface LifeReport {
     warping: number // the time warping speed at the end
     evil: number // held while this life was lived
     immortality: number
+    superImmortality: number
     timeWarping: number
+    manaControl: number
+    masterWizard: number
+    chairman: number
     job: string
     ended: "evil" | "rebirth"
 }
 
+// Embracing evil resets every max level, so after the first time a life
+// reaches 200 the bot plays rebuild lives (touching the eye) for as long as
+// each one outlives the last by at least this share, and embraces evil only
+// once lifespan has levelled off
+const REBUILD_GAIN = 0.01
+
+// The lifespan of the last life, for rebuild lives to compare against
+let lastLifespan = 0
+
+function shouldEmbraceEvil(lifespan: number): boolean {
+    if (!isUnlocked("rebirth_note_3")) return false
+    if (gameData.evil == 0) return true
+    return lifespan < lastLifespan * (1 + REBUILD_GAIN)
+}
+
 // Plays the life being lived to its end, then ends it: in evil if it reached
-// 200, else by touching the eye. A life is cut short after maxSteps.
+// 200 and rebuilding has levelled off, else by touching the eye. A life is
+// cut short after maxSteps.
 export function playLife(maxSteps = Infinity): LifeReport {
     gameData.timeWarpingEnabled = true
     const life = gameData.rebirthOneCount + gameData.rebirthTwoCount + 1
@@ -142,10 +162,12 @@ export function playLife(maxSteps = Infinity): LifeReport {
         steps++
     }
     const age = gameData.days / 365
-    const ended = isUnlocked("rebirth_note_3") ? "evil" : "rebirth"
+    const lifespan = getLifespan() / 365
+    const ended = shouldEmbraceEvil(lifespan) ? "evil" : "rebirth"
+    lastLifespan = ended == "evil" ? 0 : lifespan
     const report: LifeReport = {
         life,
-        lifespan: getLifespan() / 365,
+        lifespan,
         age,
         year: Math.floor(1200 + age - 14),
         steps,
@@ -155,7 +177,11 @@ export function playLife(maxSteps = Infinity): LifeReport {
         warping: applyStatBoosts("gameSpeed", 1),
         evil,
         immortality: levelOf("immortality"),
+        superImmortality: levelOf("super_immortality"),
         timeWarping: levelOf("time_warping"),
+        manaControl: levelOf("mana_control"),
+        masterWizard: levelOf("master_wizard"),
+        chairman: levelOf("chairman"),
         job: gameData.currentJob.name,
         ended,
     }

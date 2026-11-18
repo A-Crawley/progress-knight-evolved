@@ -37,6 +37,8 @@ function row(report) {
         ("reached " + report.year).padEnd(12),
         hours(report.seconds).padStart(7) + " (" + hours(report.secondsWithoutWarping) + " unwarped)",
         report.job,
+        "mana " + report.manaControl + (report.chairman ? " chairman " + report.chairman : "")
+            + (report.superImmortality ? " super " + report.superImmortality : ""),
     ].join("  ")
 }
 
