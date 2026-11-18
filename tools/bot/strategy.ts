@@ -95,7 +95,20 @@ export function chooseJob(): void {
     gameData.currentJob = best
 }
 
+// Chairman needs Mana control 2000 and Master wizard 10. Levelled evenly
+// with every other skill, Mana control stalls near 1,800, so with Master
+// wizard open the bot trains Mana control alone until Chairman opens.
+function chairmanSkill(): Skill | null {
+    if (!unlocked("Master wizard") || unlocked("Chairman")) return null
+    return gameData.taskData[namesById["mana_control"]] as Skill
+}
+
 export function chooseSkill(): void {
+    const focus = chairmanSkill()
+    if (focus) {
+        gameData.currentSkill = focus
+        return
+    }
     let lowest: Skill | null = null
     for (const skill of skills) {
         const candidate = gameData.taskData[skill.name] as Skill
