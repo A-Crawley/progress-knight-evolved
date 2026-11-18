@@ -213,19 +213,19 @@ export type SeasonId = (typeof seasonList)[number]["id"]
 // Events, each lasting a whole season (see EventDefinition in types.ts).
 // Events every 7 years or more are rare, and marked so in the Chronicle.
 const eventList = [
-    {id: "tournament_summer", name: "Tournament Summer", plural: "Tournament Summers", season: "summer", everyYears: 3, offset: 0,
+    {id: "tournament_summer", name: "Tournament Summer", plural: "Tournament Summers", season: "summer", everyYears: 3, offset: 2,
         effects: [{label: "Military XP", effect: 2, boosts: [{stat: "xp", of: "Military"}]}],
         requires: "military_glimpse", description: "Every 3 years. Knights ride in from every corner; the lists need squires."},
-    {id: "hard_winter", name: "Hard Winter", plural: "Hard Winters", season: "winter", everyYears: 5, offset: 0,
+    {id: "hard_winter", name: "Hard Winter", plural: "Hard Winters", season: "winter", everyYears: 5, offset: 3,
         effects: [
             {label: "upkeep", effect: 1.25, boosts: [{stat: "expense", of: "items"}]},
             {label: "skill XP", effect: 1.5, boosts: [{stat: "xp", of: "skills"}]},
         ],
         requires: "shop", description: "Every 5 years. The roads close; a good season to study."},
-    {id: "arcane_conjunction", name: "Arcane Conjunction", plural: "Arcane Conjunctions", season: "winter", everyYears: 7, offset: 0,
+    {id: "arcane_conjunction", name: "Arcane Conjunction", plural: "Arcane Conjunctions", season: "winter", everyYears: 7, offset: 5,
         effects: [{label: "Magic and Arcane XP", effect: 3, boosts: [{stat: "xp", of: "Magic"}, {stat: "xp", of: "The Arcane Association"}]}],
         requires: "arcane_glimpse", description: "Every 7 years. The stars align, and spells come easier."},
-    {id: "blood_moon", name: "Blood Moon", plural: "Blood Moons", season: "winter", everyYears: 13, offset: 0,
+    {id: "blood_moon", name: "Blood Moon", plural: "Blood Moons", season: "winter", everyYears: 13, offset: 4,
         effects: [{label: "evil gain", effect: 1.5, boosts: [{stat: "evilGain"}]}],
         requires: "dark_magic", description: "Every 13 years. Evil embraced under a red moon runs deeper."},
 ] as const satisfies readonly EventDefinition[]

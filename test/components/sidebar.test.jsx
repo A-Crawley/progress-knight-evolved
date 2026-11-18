@@ -159,7 +159,7 @@ test("the purse says what an event running does to upkeep", async () => {
     game.gameData.days = 365 * 14 + 50
     game.rerender()
     assert.equal(document.querySelector(".purse-event"), null)
-    game.gameData.days = 365 * 14 + 183 + 5
+    game.gameData.days = 365 * 47 + 183 + 5 // Winter 1233
     game.rerender()
     // Arcane Conjunction runs too, but touches neither pay nor upkeep
     const lines = [...document.querySelectorAll(".purse-event")]

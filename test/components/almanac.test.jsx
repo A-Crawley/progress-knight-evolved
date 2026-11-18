@@ -102,7 +102,7 @@ const toggle = () => card().querySelector(".almanac-toggle")
 
 test("events stay out of the Almanac until they are unlocked", async () => {
     const game = await renderComponent("Almanac.tsx", "Almanac", { onOpenChronicle() {} })
-    game.gameData.days = 14 * YEAR + WINTER + 3
+    game.gameData.days = 17 * YEAR + WINTER + 3 // Winter 1203: Hard Winter
     game.rerender()
     assert.equal(card().querySelector(".almanac-event"), null)
     assert.equal(nextLine(), null)
@@ -112,7 +112,7 @@ test("events stay out of the Almanac until they are unlocked", async () => {
 test("between events, the next one and when it comes", async () => {
     const game = await renderComponent("Almanac.tsx", "Almanac", { onOpenChronicle() {} })
     unlock(game, "Shop")
-    game.gameData.days = 14 * YEAR + 50
+    game.gameData.days = 17 * YEAR + 50
     game.rerender()
     assert.equal(squash(nextLine()), "Next: Hard Winter in 133 days")
     assert.equal(card().querySelector(".almanac-event"), null)
@@ -121,7 +121,7 @@ test("between events, the next one and when it comes", async () => {
 test("an event running shows its name, the days left, its effects and what it is", async () => {
     const game = await renderComponent("Almanac.tsx", "Almanac", { onOpenChronicle() {} })
     unlock(game, "Shop")
-    game.gameData.days = 14 * YEAR + WINTER + 3
+    game.gameData.days = 17 * YEAR + WINTER + 3 // Winter 1203: Hard Winter
     game.rerender()
     const box = card().querySelector(".almanac-event")
     assert.equal(squash(box.querySelector(".almanac-event-head")), "Hard Winter Began 179 days left")
@@ -131,7 +131,7 @@ test("an event running shows its name, the days left, its effects and what it is
     assert.match(squash(box), /The roads close; a good season to study\.$/)
     assert.equal(nextLine(), null, "no next line while an event runs")
 
-    game.gameData.days = 14 * YEAR + WINTER + 30
+    game.gameData.days = 17 * YEAR + WINTER + 30
     game.rerender()
     assert.equal(card().querySelector(".almanac-began"), null, "Began only for its first days")
 })
@@ -139,7 +139,7 @@ test("an event running shows its name, the days left, its effects and what it is
 test("events that fall together each get a box", async () => {
     const game = await renderComponent("Almanac.tsx", "Almanac", { onOpenChronicle() {} })
     unlock(game, "Shop", "Arcane glimpse")
-    game.gameData.days = 14 * YEAR + WINTER + 3
+    game.gameData.days = 47 * YEAR + WINTER + 3 // Winter 1233: Hard Winter and Arcane Conjunction
     game.rerender()
     assert.deepEqual([...card().querySelectorAll(".almanac-event strong")].map(squash), ["Hard Winter", "Arcane Conjunction"])
 })
@@ -158,12 +158,12 @@ test("Coming up lists the next three events", async () => {
     assert.equal(toggle().getAttribute("aria-expanded"), "true")
     const items = [...card().querySelectorAll(".almanac-coming")].map(squash)
     assert.deepEqual(items, [
-        "Tournament Summer in 1 year Summer 1203 · ×2 Military XP",
-        "Hard Winter in 4 years Winter 1205 · ×1.25 upkeep, ×1.5 skill XP",
-        "Tournament Summer in 4 years Summer 1206 · ×2 Military XP",
+        "Tournament Summer in 355 days Summer 1202 · ×2 Military XP",
+        "Hard Winter in 2 years Winter 1203 · ×1.25 upkeep, ×1.5 skill XP",
+        "Tournament Summer in 3 years Summer 1205 · ×2 Military XP",
     ])
     assert.equal(nextLine(), null, "the list replaces the next line")
     fireEvent.click(toggle())
     assert.equal(card().querySelector(".almanac-upcoming"), null)
-    assert.equal(squash(nextLine()), "Next: Tournament Summer in 1 year")
+    assert.equal(squash(nextLine()), "Next: Tournament Summer in 355 days")
 })

@@ -68,7 +68,7 @@ test("an event running gets a row under the life bar", async () => {
     game.gameData.days = 365 * 14 + 50
     game.rerender()
     assert.equal(header().querySelector(".phone-header-event"), null)
-    game.gameData.days = 365 * 14 + 183 + 61
+    game.gameData.days = 365 * 17 + 183 + 61 // Winter 1203
     game.rerender()
     const rows = header().querySelectorAll(".phone-header-event")
     assert.equal(rows.length, 1)
