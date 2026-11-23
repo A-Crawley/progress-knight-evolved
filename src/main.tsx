@@ -4,7 +4,7 @@ import { advanceGameTime, initGameData, setSkillWithLowestMaxXp, update } from "
 import { loadGameData, saveGameData } from "./game/save.ts"
 import { updateSpeed } from "./game/rules.ts"
 import { App } from "./ui/App.tsx"
-import { startRendering } from "./ui/gameStore.ts"
+import { onGameSteps } from "./ui/gameStore.ts"
 import { setBackgroundInterval } from "./backgroundTimer.ts"
 import { applyPreferences } from "./ui/preferences.ts"
 
@@ -18,19 +18,37 @@ applyPreferences()
 // The one element outside React: where it renders the page
 createRoot(document.getElementById("root") as HTMLElement).render(<App />)
 
-// Runs the game steps for the real time that has passed since the last call.
-// Timers can fire late or be throttled, so the time is measured.
+// Runs the game steps for the real time that has passed since the last call,
+// and returns how many it ran. Timers can fire late or be throttled, so the
+// time is measured.
 let lastLoopTime = performance.now()
 
-function gameLoop() {
-    const now = performance.now()
-    advanceGameTime(now - lastLoopTime)
+function gameLoop(now: number): number {
+    if (now <= lastLoopTime) return 0
+    const steps = advanceGameTime(now - lastLoopTime)
     lastLoopTime = now
+    return steps
 }
 
-// The game keeps running in a background tab (see backgroundTimer.ts);
-// rendering only happens while the page is shown
-setBackgroundInterval(gameLoop, 1000 / updateSpeed)
-startRendering()
+// While the page is shown, the game runs on animation frames, so its steps
+// and the renders after them keep to the same clock and the progress bars
+// move at an even speed (see onGameSteps). Animation frames stop in a
+// background tab, so then a timer that keeps running there (see
+// backgroundTimer.ts) runs the game instead, without rendering.
+const stepInterval = 1000 / updateSpeed
+let lastFrameTime = -Infinity
+
+function onFrame(now: number) {
+    lastFrameTime = now
+    onGameSteps(gameLoop(now))
+    requestAnimationFrame(onFrame)
+}
+requestAnimationFrame(onFrame)
+
+setBackgroundInterval(() => {
+    const now = performance.now()
+    if (now - lastFrameTime > 5 * stepInterval) gameLoop(now)
+}, stepInterval)
+
 setBackgroundInterval(saveGameData, 3000)
 setBackgroundInterval(setSkillWithLowestMaxXp, 1000)

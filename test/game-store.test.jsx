@@ -8,7 +8,7 @@ import { act, cleanup, render } from "@testing-library/react"
 import { initGameData, update, rebirthOne } from "../src/game/engine.ts"
 import { gameData } from "../src/game/state.ts"
 import { serializeGameData } from "../src/game/save.ts"
-import { getSnapshot, onAnimationFrame, requestRender, renderInterval, subscribe, useGame } from "../src/ui/gameStore.ts"
+import { getSnapshot, onGameSteps, requestRender, renderInterval, stepsPerRender, subscribe, useGame } from "../src/ui/gameStore.ts"
 
 initGameData()
 update()
@@ -17,16 +17,25 @@ update()
 beforeEach(() => { globalThis.IS_REACT_ACT_ENVIRONMENT = true })
 afterEach(cleanup)
 
-test("the frame moves on about 10 times a second of animation frames", async () => {
+test("the frame moves on once every 100 ms of game time", async () => {
     assert.equal(renderInterval, 100)
+    assert.equal(stepsPerRender, 2)
     const start = getSnapshot()
+    // One second of game steps, run 0 to 3 at a time like uneven animation frames
+    const frames = [1, 0, 1, 1, 0, 2, 1, 1, 1, 0, 3, 1, 1, 2, 1, 0, 2, 1, 1]
+    assert.equal(frames.reduce((a, b) => a + b), 20)
     let rendered = 0
-    // One second of 60 Hz animation frames, starting well after the last render
-    for (let i = 0; i < 60; i++) {
-        if (onAnimationFrame(1e6 + i * 1000 / 60)) rendered++
+    for (const steps of frames) {
+        if (onGameSteps(steps)) rendered++
     }
-    assert.ok(rendered >= 9 && rendered <= 11, `${rendered} renders`)
+    assert.equal(rendered, 10)
     assert.equal(getSnapshot(), start + rendered)
+    // A frame that runs past two renders' worth of steps still renders once
+    assert.equal(onGameSteps(1), false)
+    assert.equal(onGameSteps(3), true)
+    assert.equal(getSnapshot(), start + rendered + 1)
+    assert.equal(onGameSteps(1), false)
+    onGameSteps(1)
 })
 
 test("requestRender moves the frame on and tells subscribers", async () => {

@@ -942,16 +942,34 @@ th {
     background-color: var(--pk-bar-current);
 }
 
-/* Progress fills are full width and slid into place (see src/ui/fill.ts):
-   a transform eases between renders without laying out the page again. The
-   bar around each fill clips it. */
+/* Progress fills are full width and slid into place with a transform (see
+   src/ui/fill.ts), which never lays out the page again. The bar around each
+   fill clips it. The fill eases between renders by animating --fill, not the
+   transform: the browser runs a transform animation apart from the page, and
+   when each render restarted it, it sometimes restarted from an old
+   position, so the bars jumped backwards. */
+@property --fill {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: 0;
+}
+
 .progress-fill,
 .quick-fill,
 .life-bar-fill {
     width: 100%;
-    transform: translateX(calc((var(--fill, 0) - 1) * 100%));
-    transition: transform var(--pk-tick) linear;
-    will-change: transform;
+    transform: translateX(calc((var(--fill) - 1) * 100%));
+    transition: --fill var(--pk-tick) linear;
+}
+
+/* A bar is drawn afresh when its job or skill levels up. Without this it
+   would appear at its new fill and wait there for the next render; instead
+   it slides in from empty over the same render interval */
+@starting-style {
+    .progress-fill,
+    .quick-fill {
+        --fill: 0;
+    }
 }
 
 .quick-text {
