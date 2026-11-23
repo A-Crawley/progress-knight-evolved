@@ -8,58 +8,77 @@ import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calen
 import { getActiveEvents } from "../game/events.ts"
 import { effectColor, effectText } from "./eventText.ts"
 import type { SeasonId } from "../game/data.ts"
-import { requestRender, useGame } from "./gameStore.ts"
-import { CoinParts } from "./CoinParts.tsx"
+import { gameData } from "../game/state.ts"
+import { requestRender, sameData, useGameValue } from "./gameStore.ts"
+import { FormattedCoins } from "./CoinParts.tsx"
+import { formatCoins } from "./format.ts"
 import { getLifeShare } from "./life.ts"
 import { fillStyle } from "./fill.ts"
 import { SeasonIcon } from "./SeasonIcon.tsx"
 
-export function PhoneHeader() {
-    const game = useGame()
+const signColors: Record<string, string> = {"+": "var(--pk-gain)", "-": "var(--pk-loss)", "": "var(--pk-text-muted)"}
+
+// Everything the phone header shows, so it renders only when some of it changes
+function getView() {
     const income = getIncome()
     const expense = getExpense()
-    const sign = income > expense ? {text: "+", color: "var(--pk-gain)"} : expense > income ? {text: "-", color: "var(--pk-loss)"} : {text: "", color: "var(--pk-text-muted)"}
-    const lifespan = getLifespan()
-    const lifeShare = getLifeShare(game.days)
-    const age = daysToYears(game.days)
     const date = toDate(getWorldDay())
+    const left = daysLeftInSeason(getWorldDay())
+    return {
+        paused: gameData.paused,
+        coins: formatCoins(gameData.coins),
+        net: formatCoins(getNet()),
+        sign: income > expense ? "+" : expense > income ? "-" : "",
+        age: daysToYears(gameData.days),
+        lifespan: daysToYears(getLifespan()),
+        lifeShare: getLifeShare(gameData.days),
+        season: date.season.id as SeasonId,
+        date: formatDate(date),
+        events: getActiveEvents().map(running => ({
+            name: running.event.name,
+            effects: running.event.effects.map(effect => ({label: effect.label, text: effectText(effect), color: effectColor(effect, true)})),
+        })),
+        left: left + (left == 1 ? " day" : " days"),
+        lifeOver: isLifeOver(),
+    }
+}
+
+export function PhoneHeader() {
+    const {paused, coins, net, sign, age, lifespan, lifeShare, season, date, events, left, lifeOver} = useGameValue(getView, sameData)
     return (
         <header className="phone-header">
             <div className="phone-header-row">
                 <span className="phone-header-title">Progress Knight</span>
-                <button type="button" className="phone-header-pause" aria-label={game.paused ? "Play" : "Pause"} onClick={() => {setPause(); requestRender()}}>
+                <button type="button" className="phone-header-pause" aria-label={paused ? "Play" : "Pause"} onClick={() => {setPause(); requestRender()}}>
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        {game.paused ? <path d="M7 5l12 7-12 7z" /> : <path d="M8 5v14M16 5v14" />}
+                        {paused ? <path d="M7 5l12 7-12 7z" /> : <path d="M8 5v14M16 5v14" />}
                     </svg>
                 </button>
             </div>
             <div className="phone-header-row">
-                <span className="phone-header-coins"><CoinParts coins={game.coins} /></span>
+                <span className="phone-header-coins"><FormattedCoins parts={coins} /></span>
                 <span className="phone-header-net">
-                    <span style={{color: sign.color}}>{sign.text}</span><CoinParts coins={getNet()} />/ day
+                    <span style={{color: signColors[sign]}}>{sign}</span><FormattedCoins parts={net} />/ day
                 </span>
             </div>
             <div className="phone-header-row phone-header-muted">
-                <span>Age <b>{age}</b> · <span className="life-date"><SeasonIcon season={date.season.id as SeasonId} size={14} /><b className="phone-header-date">{formatDate(date)}</b></span></span>
-                <span>Lifespan {daysToYears(lifespan)}</span>
+                <span>Age <b>{age}</b> · <span className="life-date"><SeasonIcon season={season} size={14} /><b className="phone-header-date">{date}</b></span></span>
+                <span>Lifespan {lifespan}</span>
             </div>
-            <div className="life-bar" role="img" aria-label={"Age " + age + " of " + daysToYears(lifespan)}>
+            <div className="life-bar" role="img" aria-label={"Age " + age + " of " + lifespan}>
                 <div className="life-bar-fill" style={fillStyle(lifeShare)}></div>
             </div>
-            {getActiveEvents().map(running => {
-                const left = daysLeftInSeason(getWorldDay())
-                return (
-                    <div key={running.event.id} className="phone-header-event">
-                        <strong>{running.event.name}</strong>
-                        {running.event.effects.map(effect => (
-                            <span key={effect.label}>{" "}<span className="phone-header-effect" style={{color: effectColor(effect, true)}}>{effectText(effect)}</span></span>
-                        ))}
-                        {" "}
-                        <span className="phone-header-event-left">{left + (left == 1 ? " day" : " days")}</span>
-                    </div>
-                )
-            })}
-            {isLifeOver() && <div className="phone-header-death">Age has caught up to you</div>}
+            {events.map(event => (
+                <div key={event.name} className="phone-header-event">
+                    <strong>{event.name}</strong>
+                    {event.effects.map(effect => (
+                        <span key={effect.label}>{" "}<span className="phone-header-effect" style={{color: effect.color}}>{effect.text}</span></span>
+                    ))}
+                    {" "}
+                    <span className="phone-header-event-left">{left}</span>
+                </div>
+            ))}
+            {lifeOver && <div className="phone-header-death">Age has caught up to you</div>}
         </header>
     )
 }
