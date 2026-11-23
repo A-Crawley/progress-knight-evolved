@@ -954,6 +954,16 @@ th {
     will-change: transform;
 }
 
+/* A bar is drawn afresh when its job or skill levels up. Without this it
+   would appear at its new fill and wait there for the next render; instead
+   it slides in from empty over the same render interval */
+@starting-style {
+    .progress-fill,
+    .quick-fill {
+        transform: translateX(-100%);
+    }
+}
+
 .quick-text {
     position: relative;
     display: flex;
