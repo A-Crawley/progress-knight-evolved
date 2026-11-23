@@ -3,6 +3,7 @@
 // and the pause button. Phones have
 // PhoneHeader instead (this one is hidden under 640px).
 
+import { useRef } from "react"
 import { daysToYears, getGameSpeed, getLifespan } from "../game/rules.ts"
 import { isLifeOver, setPause } from "../game/engine.ts"
 import { formatDate, getWorldDay, toDate } from "../game/calendar.ts"
@@ -12,7 +13,7 @@ import { gameData } from "../game/state.ts"
 import { requestRender, sameData, useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
 import { getLifeShare } from "./life.ts"
-import { fillStyle } from "./fill.ts"
+import { useFillBar } from "./fillBar.ts"
 import { SeasonIcon } from "./SeasonIcon.tsx"
 
 // Everything the header shows, so it renders only when some of it changes
@@ -28,15 +29,21 @@ function getView() {
         season: date.season.id as SeasonId,
         date: formatDate(date),
         events: getActiveEvents().map(running => running.event.name),
-        lifeShare: getLifeShare(gameData.days),
         speed: gameData.paused ? "Paused" : speed > 0 ? Number(speed.toFixed(2)) + " days / sec" : "",
         paused: gameData.paused,
         lifeOver,
     }
 }
 
+// How far through its life the character is, for the life bar
+function getLifeBarShare(): number {
+    return getLifeShare(gameData.days)
+}
+
 export function Header() {
-    const {age, lifespan, season, date, events, lifeShare, speed, paused, lifeOver} = useGameValue(getView, sameData)
+    const {age, lifespan, season, date, events, speed, paused, lifeOver} = useGameValue(getView, sameData)
+    const lifeFill = useRef<HTMLDivElement>(null)
+    useFillBar(lifeFill, getLifeBarShare)
     return (
         <header className="site-header">
             <div className="site-header-inner">
@@ -50,7 +57,7 @@ export function Header() {
                         <span className="life-left"><b>{Math.max(0, lifespan - age)} years</b> left of <span id="lifespanDisplay">{lifespan}</span></span>
                     </div>
                     <div className="life-bar" role="img" aria-label={"Life progress: age " + age + " of " + lifespan}>
-                        <div className="life-bar-fill" style={fillStyle(lifeShare)}></div>
+                        <div className="life-bar-fill" ref={lifeFill}></div>
                     </div>
                 </div>
                 <div className="speed-block">

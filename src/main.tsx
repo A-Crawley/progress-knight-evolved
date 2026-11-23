@@ -5,6 +5,7 @@ import { loadGameData, saveGameData } from "./game/save.ts"
 import { updateSpeed } from "./game/rules.ts"
 import { App } from "./ui/App.tsx"
 import { onGameSteps } from "./ui/gameStore.ts"
+import { paintBars } from "./ui/fillBar.ts"
 import { setBackgroundInterval } from "./backgroundTimer.ts"
 import { applyPreferences } from "./ui/preferences.ts"
 
@@ -30,9 +31,9 @@ function gameLoop(now: number): number {
     return steps
 }
 
-// While the page is shown, the game runs on animation frames, so its steps
-// and the renders after them keep to the same clock and the progress bars
-// move at an even speed (see onGameSteps). Animation frames stop in a
+// While the page is shown, the game runs on animation frames, so its steps,
+// the renders after them and the progress bars all keep to the same clock
+// and the bars move at an even speed (see fillBar.ts). Animation frames stop in a
 // background tab, so then a timer that keeps running there (see
 // backgroundTimer.ts) runs the game instead, without rendering.
 const stepInterval = 1000 / updateSpeed
@@ -40,7 +41,9 @@ let lastFrameTime = -Infinity
 
 function onFrame(now: number) {
     lastFrameTime = now
-    onGameSteps(gameLoop(now))
+    const steps = gameLoop(now)
+    onGameSteps(steps)
+    paintBars(now, steps)
     requestAnimationFrame(onFrame)
 }
 requestAnimationFrame(onFrame)

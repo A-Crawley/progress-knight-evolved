@@ -2,7 +2,7 @@
 // or skill, and what the next one needs. Each row picks out what it shows, so
 // it renders only when that changes.
 
-import { Fragment } from "react"
+import { Fragment, useRef } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, idsByName, jobCategories, skillCategories, tooltips } from "../game/data.ts"
 import { Job, Skill } from "../game/classes.ts"
@@ -14,7 +14,7 @@ import { Checkbox } from "./Checkbox.tsx"
 import { RequiredRow, isCategoryHidden, isCategoryUnseen } from "./RequiredRow.tsx"
 import { classNames, removeSpaces } from "./classNames.ts"
 import { format, formatCoins, splitEffect } from "./format.ts"
-import { fillStyle } from "./fill.ts"
+import { useFillBar } from "./fillBar.ts"
 import { useLongPressTooltip } from "./useLongPressTooltip.ts"
 
 export type TaskKind = "jobs" | "skills"
@@ -74,7 +74,6 @@ function getRow(name: string, categoryName: string) {
     return {
         level: task.level,
         current: task == gameData.currentJob || task == gameData.currentSkill,
-        share: task.xp / task.getMaxXp(),
         multiplier: effect?.multiplier ?? null,
         what: effect?.what ?? null,
         income: task instanceof Job ? formatCoins(task.getIncome()) : null,
@@ -92,6 +91,8 @@ function getRow(name: string, categoryName: string) {
 
 function TaskRow({name, categoryName}: {name: string, categoryName: string}) {
     const row = useGameValue(() => getRow(name, categoryName), sameData)
+    const fill = useRef<HTMLSpanElement>(null)
+    useFillBar(fill, () => gameData.taskData[name].xp / gameData.taskData[name].getMaxXp())
     const tooltipId = "tip-" + removeSpaces(name)
     const longPress = useLongPressTooltip()
     return (
@@ -100,11 +101,9 @@ function TaskRow({name, categoryName}: {name: string, categoryName: string}) {
             <td>
                 {/* A real button, so the keyboard can start the task too */}
                 <button type="button" className={classNames("progress-bar progressBar tooltip", longPress.shown && "tooltip-open")} aria-describedby={tooltipId} {...longPress.handlers} onClick={() => {setTask(name); requestRender()}}>
-                    {/* Keyed by level so a level-up resets the bar instead of sliding it back */}
                     {/* The track clips the sliding fill; the tooltip stays outside it */}
                     <span className="progress-track">
-                        <span key={row.level} className={classNames("progress-fill progressFill", row.current && "current")}
-                            style={fillStyle(row.share)}></span>
+                        <span ref={fill} className={classNames("progress-fill progressFill", row.current && "current")}></span>
                     </span>
                     <span className="progress-text name">{name}</span>
                     <span className="bar-end">

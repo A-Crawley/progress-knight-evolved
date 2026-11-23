@@ -6,7 +6,7 @@
 // list of the next few events. It appears with the Amulet tab, and stays
 // once a life has been lived.
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { calendar } from "../game/data.ts"
 import type { SeasonId } from "../game/data.ts"
 import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calendar.ts"
@@ -17,7 +17,7 @@ import { getRecord, reachedText, toRoman } from "../game/history.ts"
 import { effectColor, effectText, seasonYearText, untilText } from "./eventText.ts"
 import { sameData, useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
-import { fillStyle } from "./fill.ts"
+import { useFillBar } from "./fillBar.ts"
 import { SeasonIcon } from "./SeasonIcon.tsx"
 
 // Whether the calendar's history is shown yet: the Almanac, and the
@@ -47,9 +47,6 @@ function getView(expanded: boolean) {
         date: formatDate(date),
         toNext: left + (left == 1 ? " day" : " days") + " to " + next.name,
         barLabel: season.name + ", day " + date.dayOfSeason + " of " + season.days,
-        // A new season starts its bar afresh instead of sliding it back
-        barKey: date.year + " " + season.id,
-        share: (date.dayOfSeason - 1) / season.days,
         record: getRecordLine(),
         running: getActiveEvents().map(occurrence => ({
             id: occurrence.event.id,
@@ -70,12 +67,20 @@ function getView(expanded: boolean) {
     }
 }
 
+// How far through this season the world is, for the season bar
+function getSeasonShare(): number {
+    const date = toDate(getWorldDay())
+    return (date.dayOfSeason - 1) / date.season.days
+}
+
 type RunningEvent = ReturnType<typeof getView>["running"][number]
 
 export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
     const [expanded, setExpanded] = useState(false)
     const view = useGameValue(() => getView(expanded), sameData)
     const {showList, running, upcoming} = view
+    const seasonFill = useRef<HTMLDivElement>(null)
+    useFillBar(seasonFill, getSeasonShare)
     return (
         <section id="almanac" aria-labelledby="almanacLabel" className={classNames("card almanac", !view.shown && "hidden")}>
             <div className="almanac-head">
@@ -94,9 +99,7 @@ export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
                     <span className="card-note almanac-next">{view.toNext}</span>
                 </div>
                 <div className="life-bar almanac-bar" role="img" aria-label={view.barLabel}>
-                    {/* Keyed so a new season starts its bar afresh instead of sliding it back */}
-                    <div key={view.barKey} className="life-bar-fill"
-                        style={{...fillStyle(view.share), backgroundColor: "var(--pk-season-" + view.season + ")"}}></div>
+                    <div ref={seasonFill} className="life-bar-fill" style={{backgroundColor: "var(--pk-season-" + view.season + ")"}}></div>
                 </div>
             </div>
             <RecordLine record={view.record} />

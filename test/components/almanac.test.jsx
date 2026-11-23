@@ -38,7 +38,7 @@ test("today's date, the days to the next season and how far through this one", a
     const bar = card().querySelector(".almanac-bar")
     assert.equal(bar.getAttribute("role"), "img")
     assert.equal(bar.getAttribute("aria-label"), "Summer, day 42 of 183")
-    assert.equal(bar.firstChild.style.getPropertyValue("--fill"), String(41 / 183))
+    assert.equal(bar.firstChild.style.transform, game.fillTransform(41 / 183))
     assert.equal(bar.firstChild.style.backgroundColor, "var(--pk-season-summer)")
 
     game.gameData.days = 14 * YEAR + 364

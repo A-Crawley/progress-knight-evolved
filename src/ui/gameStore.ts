@@ -34,13 +34,13 @@ export function renderNow(): void {
     flushSync(requestRender)
 }
 
-// About 10 frames per second is plenty for numbers and progress bars
+// About 10 frames per second is plenty for numbers. The progress bars don't
+// wait for frames: fillBar.ts paints them on every animation frame.
 export const renderInterval = 100
 
-// Renders come after a fixed number of game steps (renderInterval of game
-// time), not after a fixed time on the clock. The progress bars ease over
-// one render interval (--pk-tick in tokens.css), so if renders came after
-// 1, 2 or 3 steps the bars would keep speeding up and slowing down.
+// Frames come after a fixed number of game steps (renderInterval of game
+// time), not after a fixed time on the clock, so numbers count at the
+// game's own pace.
 export const stepsPerRender = renderInterval * updateSpeed / 1000
 let stepsSinceRender = 0
 

@@ -2,6 +2,7 @@
 // happiness, evil, time warping and automation. Each part picks out what it
 // shows, so it renders only when that changes.
 
+import { useRef } from "react"
 import type { Job, Skill } from "../game/classes.ts"
 import { gameData } from "../game/state.ts"
 import { items, skills } from "../game/data.ts"
@@ -13,7 +14,7 @@ import { FormattedCoins } from "./CoinParts.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { classNames } from "./classNames.ts"
 import { format, formatCoins } from "./format.ts"
-import { fillStyle } from "./fill.ts"
+import { useFillBar } from "./fillBar.ts"
 import { Almanac } from "./Almanac.tsx"
 import { getActiveEvents } from "../game/events.ts"
 import { effectColor } from "./eventText.ts"
@@ -154,15 +155,17 @@ function getNextLevelText(task: Job | Skill): string {
 
 // The current job or skill: a bar with its level and progress, and a muted line under it
 function QuickTask({kind, className}: {kind: "Job" | "Skill", className: string}) {
+    const getTask = () => kind == "Job" ? gameData.currentJob : gameData.currentSkill
     const task = useGameValue(() => {
-        const task = kind == "Job" ? gameData.currentJob : gameData.currentSkill
-        return {name: task.name, level: task.level, share: task.xp / task.getMaxXp(), next: getNextLevelText(task)}
+        const task = getTask()
+        return {name: task.name, level: task.level, next: getNextLevelText(task)}
     }, shallowEqual)
+    const fill = useRef<HTMLDivElement>(null)
+    useFillBar(fill, () => getTask().xp / getTask().getMaxXp(), task.name)
     return (
         <div className="quick-task">
             <div className={classNames("quick-bar", className)}>
-                {/* Keyed so a level-up or a new task resets the bar instead of sliding it back */}
-                <div key={task.name + " " + task.level} className="quick-fill" style={fillStyle(task.share)}></div>
+                <div ref={fill} className="quick-fill"></div>
                 <div className="quick-text">
                     <span className="name">{task.name}</span>
                     <span className="quick-level">{"lvl " + task.level}</span>

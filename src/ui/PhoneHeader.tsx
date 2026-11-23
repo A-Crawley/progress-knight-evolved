@@ -2,6 +2,7 @@
 // age and the world's date, a life bar and a row for each event running. Header.tsx holds the same numbers behind ids (tests
 // and wider screens use those), so this uses classes only.
 
+import { useRef } from "react"
 import { daysToYears, getLifespan } from "../game/rules.ts"
 import { getExpense, getIncome, getNet, isLifeOver, setPause } from "../game/engine.ts"
 import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calendar.ts"
@@ -13,7 +14,7 @@ import { requestRender, sameData, useGameValue } from "./gameStore.ts"
 import { FormattedCoins } from "./CoinParts.tsx"
 import { formatCoins } from "./format.ts"
 import { getLifeShare } from "./life.ts"
-import { fillStyle } from "./fill.ts"
+import { useFillBar } from "./fillBar.ts"
 import { SeasonIcon } from "./SeasonIcon.tsx"
 
 const signColors: Record<string, string> = {"+": "var(--pk-gain)", "-": "var(--pk-loss)", "": "var(--pk-text-muted)"}
@@ -31,7 +32,6 @@ function getView() {
         sign: income > expense ? "+" : expense > income ? "-" : "",
         age: daysToYears(gameData.days),
         lifespan: daysToYears(getLifespan()),
-        lifeShare: getLifeShare(gameData.days),
         season: date.season.id as SeasonId,
         date: formatDate(date),
         events: getActiveEvents().map(running => ({
@@ -43,8 +43,15 @@ function getView() {
     }
 }
 
+// How far through its life the character is, for the life bar
+function getLifeBarShare(): number {
+    return getLifeShare(gameData.days)
+}
+
 export function PhoneHeader() {
-    const {paused, coins, net, sign, age, lifespan, lifeShare, season, date, events, left, lifeOver} = useGameValue(getView, sameData)
+    const {paused, coins, net, sign, age, lifespan, season, date, events, left, lifeOver} = useGameValue(getView, sameData)
+    const lifeFill = useRef<HTMLDivElement>(null)
+    useFillBar(lifeFill, getLifeBarShare)
     return (
         <header className="phone-header">
             <div className="phone-header-row">
@@ -66,7 +73,7 @@ export function PhoneHeader() {
                 <span>Lifespan {lifespan}</span>
             </div>
             <div className="life-bar" role="img" aria-label={"Age " + age + " of " + lifespan}>
-                <div className="life-bar-fill" style={fillStyle(lifeShare)}></div>
+                <div className="life-bar-fill" ref={lifeFill}></div>
             </div>
             {events.map(event => (
                 <div key={event.name} className="phone-header-event">

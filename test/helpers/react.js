@@ -25,6 +25,7 @@ async function renderComponent(file, component, props = {}) {
     const engine = await import(path.join(ROOT, "src/game/engine.ts"))
     const { gameData } = await import(path.join(ROOT, "src/game/state.ts"))
     const store = await import(path.join(ROOT, "src/ui/gameStore.ts"))
+    const bars = await import(path.join(ROOT, "src/ui/fillBar.ts"))
     const module = await import(path.join(ROOT, "src/ui", file))
 
     // A new game, as the page starts one
@@ -32,17 +33,25 @@ async function renderComponent(file, component, props = {}) {
     engine.update()
 
     const view = render(createElement(module[component], props))
+    // A render, with the progress bars put straight at their shares (the page
+    // slides them there over the next frames)
+    const show = () => act(() => {
+        store.requestRender()
+        bars.paintBarsNow()
+    })
     return {
         ...view,
         engine,
         gameData,
         task: name => gameData.taskData[name],
+        // The transform a progress bar's fill has at a share (0 to 1)
+        fillTransform: bars.fillTransform,
         // Shows the current game state, as the render timer would
-        rerender: () => act(() => store.requestRender()),
+        rerender: show,
         // Game steps, then a render
         ticks(count) {
             for (let i = 0; i < count; i++) engine.update()
-            act(() => store.requestRender())
+            show()
         },
     }
 }

@@ -33,7 +33,7 @@ test("the life bar shows the progress from age 14 to the lifespan", async () => 
     game.gameData.days = 365 * 42
     game.rerender()
     assert.equal(bar.getAttribute("aria-label"), "Life progress: age 42 of 70")
-    assert.equal(bar.firstChild.style.getPropertyValue("--fill"), "0.5")
+    assert.equal(bar.firstChild.style.transform, "translateX(-50%)")
 })
 
 test("the game speed, and Paused while paused", async () => {
