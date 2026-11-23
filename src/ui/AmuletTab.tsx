@@ -7,7 +7,8 @@ import { getEvilGain, getTaskById, isUnlocked, rebirthOne, rebirthTwo } from "..
 import { daysToYears, getLifespan } from "../game/rules.ts"
 import type { Skill } from "../game/classes.ts"
 import type { TaskRequirementSpec } from "../game/types.ts"
-import { requestRender, useGame } from "./gameStore.ts"
+import { gameData } from "../game/state.ts"
+import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
 import { format } from "./format.ts"
 import { PastLives } from "./PastLives.tsx"
@@ -24,18 +25,27 @@ const immortalityNeeds = (() => {
     return {name, level: spec.level, place: "the " + jobBaseData[name].category.replace(/^The /, "")}
 })()
 
-export function AmuletTab() {
-    const game = useGame()
-    const eyeReady = isUnlocked("rebirth_note_2")
-    const evilReady = isUnlocked("rebirth_note_3")
+// Everything the tab shows, so it renders only when some of it changes
+function getView() {
+    return {
+        note1: isUnlocked("rebirth_note_1"),
+        eyeReady: isUnlocked("rebirth_note_2"),
+        evilReady: isUnlocked("rebirth_note_3"),
+        teaserShown: isUnlocked("arcane_glimpse"),
+        // The tasks that would give the biggest multipliers after touching the eye:
+        // a rebirth keeps the highest level reached, and the multiplier is 1 + that / 10
+        bonuses: Object.values(gameData.taskData)
+            .map(task => ({name: task.name, category: task.baseData.category, max: Math.max(task.maxLevel, task.level)}))
+            .filter(bonus => bonus.max > 0)
+            .sort((a, b) => b.max - a.max)
+            .slice(0, 4),
+        wake: reachedText(nextWakeDay()),
+        evilGain: getEvilGain().toFixed(1),
+    }
+}
 
-    // The tasks that would give the biggest multipliers after touching the eye:
-    // a rebirth keeps the highest level reached, and the multiplier is 1 + that / 10
-    const bonuses = Object.values(game.taskData)
-        .map(task => ({task, max: Math.max(task.maxLevel, task.level)}))
-        .filter(bonus => bonus.max > 0)
-        .sort((a, b) => b.max - a.max)
-        .slice(0, 4)
+export function AmuletTab() {
+    const {note1, eyeReady, evilReady, teaserShown, bonuses, wake, evilGain} = useGameValue(getView, sameData)
 
     return (
         <div className="amulet">
@@ -49,7 +59,7 @@ export function AmuletTab() {
                     it has any worth on the market given that it&apos;s made from cheap-looking copper. However, you
                     feel a weird urge to keep the amulet, so you slip it into your pocket for safekeeping.
                 </p>
-                <p id="rebirthNote1" className={classNames(!isUnlocked("rebirth_note_1") && "hidden")}>
+                <p id="rebirthNote1" className={classNames(!note1 && "hidden")}>
                     On your 45th birthday, you feel the amulet shiver uncontrollably in your pocket. You take it
                     out and the constant shivering suddenly stops. More to your bizarre surprise, you notice
                     a strange etching on the centre of the amulet.
@@ -83,11 +93,11 @@ export function AmuletTab() {
                     <div className="amulet-bonuses">
                         <h3 className="card-label">Strongest bonuses next life</h3>
                         {bonuses.length == 0 && <p className="amulet-none">Nothing yet. Level up a job or a skill and it shows here.</p>}
-                        {bonuses.map(({task, max}) => (
-                            <div key={task.name} className="amulet-bonus"
-                                style={{"--cat": headerRowColors[task.baseData.category as keyof typeof headerRowColors]} as CSSProperties}>
+                        {bonuses.map(({name, category, max}) => (
+                            <div key={name} className="amulet-bonus"
+                                style={{"--cat": headerRowColors[category as keyof typeof headerRowColors]} as CSSProperties}>
                                 <span aria-hidden="true" className="amulet-swatch"></span>
-                                <span className="amulet-bonus-name">{task.name}</span>
+                                <span className="amulet-bonus-name">{name}</span>
                                 <span className="amulet-bonus-max">max {format(max)}</span>
                                 <strong className="amulet-bonus-gain">{"×" + (max < 1000 ? (1 + max / 10).toFixed(1) : format(1 + max / 10))}</strong>
                             </div>
@@ -96,7 +106,7 @@ export function AmuletTab() {
                     <button type="button" id="rebirthOneButton" className="amulet-cta"
                         onClick={() => {rebirthOne(); requestRender()}}>Touch the eye</button>
                     <p className="amulet-fine">
-                        Resets coins, age, levels and items · <strong>you’ll wake at 14 in {reachedText(nextWakeDay())}</strong>
+                        Resets coins, age, levels and items · <strong>you’ll wake at 14 in {wake}</strong>
                     </p>
                 </section>
 
@@ -121,14 +131,14 @@ export function AmuletTab() {
                     </div>
                     <div className="amulet-reward">
                         <span>Reward</span>
-                        <strong className="amulet-throb">+<span id="evilGainDisplay">{getEvilGain().toFixed(1)}</span> evil</strong>
+                        <strong className="amulet-throb">+<span id="evilGainDisplay">{evilGain}</span> evil</strong>
                     </div>
                     <button type="button" id="rebirthTwoButton" className="quiet-button amulet-evil-button"
                         onClick={() => {rebirthTwo(); requestRender()}}>Embrace evil</button>
                 </section>
 
                 {/* Kept back until magic has been glimpsed, as it talks about it */}
-                <EvilTeaser hidden={evilReady || !isUnlocked("arcane_glimpse")} />
+                <EvilTeaser hidden={evilReady || !teaserShown} />
             </div>
             <PastLives />
         </div>
@@ -137,12 +147,20 @@ export function AmuletTab() {
 
 // Rebirth II before it's reachable: how far along the road to age 200 the
 // player is, and what stretches the lifespan that far
-function EvilTeaser({hidden}: {hidden: boolean}) {
-    const game = useGame()
-    const age = daysToYears(game.days)
-    const lifespan = daysToYears(getLifespan())
+function getTeaser() {
     const immortality = getTaskById("immortality") as Skill
-    const stretched = immortality.level > 0
+    return {
+        age: daysToYears(gameData.days),
+        lifespan: daysToYears(getLifespan()),
+        stretched: immortality.level > 0,
+        stretch: immortality.getEffect().toFixed(1),
+        immortalityUnlocked: isUnlocked("immortality"),
+        evilGain: getEvilGain().toFixed(1),
+    }
+}
+
+function EvilTeaser({hidden}: {hidden: boolean}) {
+    const {age, lifespan, stretched, stretch, immortalityUnlocked, evilGain} = useGameValue(getTeaser, shallowEqual)
     const progress = Math.min(1, age / EVIL_AGE)
     return (
         <section id="rebirthTeaser" className={classNames("amulet-card amulet-locked", hidden && "hidden")}>
@@ -175,11 +193,11 @@ function EvilTeaser({hidden}: {hidden: boolean}) {
                     <h3 className="card-label">The road there</h3>
                     <p>
                         {stretched
-                            ? <>Immortality has stretched your lifespan to {lifespan}, <b>×{immortality.getEffect().toFixed(1)}</b>.</>
+                            ? <>Immortality has stretched your lifespan to {lifespan}, <b>×{stretch}</b>.</>
                             : <>Your lifespan is {lifespan}. Immortality is what stretches it.</>}
                     </p>
                     <p className="amulet-hint-note">
-                        {isUnlocked("immortality")
+                        {immortalityUnlocked
                             ? <>Keep training Immortality to reach {EVIL_AGE}.</>
                             : <>Immortality unlocks with <b>{immortalityNeeds.name} {immortalityNeeds.level}</b>, through {immortalityNeeds.place}.</>}
                     </p>
@@ -192,7 +210,7 @@ function EvilTeaser({hidden}: {hidden: boolean}) {
             )}
             <div className="amulet-reward">
                 <span>Reward</span>
-                <strong className="amulet-throb">+{getEvilGain().toFixed(1)} evil</strong>
+                <strong className="amulet-throb">+{evilGain} evil</strong>
             </div>
         </section>
     )

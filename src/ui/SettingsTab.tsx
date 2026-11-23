@@ -6,7 +6,7 @@ import type { KeyboardEvent } from "react"
 import { clearSave, exportSave, secondsSinceSave, importSave } from "../game/save.ts"
 import { classNames } from "./classNames.ts"
 import { describeAge } from "./format.ts"
-import { useGame } from "./gameStore.ts"
+import { useGameValue } from "./gameStore.ts"
 import { setPreferences, usePreferences } from "./preferences.ts"
 import type { Theme } from "./preferences.ts"
 import { Chronicle } from "./Chronicle.tsx"
@@ -17,11 +17,9 @@ const themes: {value: Theme, label: string, id?: string}[] = [
     {value: "system", label: "System"},
 ]
 
-// Renders with every frame (through useGame) so the age keeps counting; it's
-// a few words, so that costs nothing
+// Checked on every frame so the age keeps counting; renders once a second
 function SaveStatus() {
-    useGame()
-    const age = secondsSinceSave()
+    const age = useGameValue(secondsSinceSave)
     const note = "Saved automatically every 3 seconds"
     return (
         <span className="settings-note">

@@ -7,13 +7,14 @@
 
 import { useState } from "react"
 import type { CSSProperties } from "react"
-import { DAYS_PER_YEAR, toDate, WAKE_DAY } from "../game/calendar.ts"
+import { DAYS_PER_YEAR, getWorldDay, toDate, WAKE_DAY } from "../game/calendar.ts"
 import { calendar, events } from "../game/data.ts"
 import { getEventsInSpan, isEventUnlocked, isRare } from "../game/events.ts"
 import type { EventOccurrence } from "../game/events.ts"
 import { getLifeSpans, getRecord, reachedText, toRoman } from "../game/history.ts"
 import type { LifeSpan, WorldRecord } from "../game/history.ts"
-import { useGame } from "./gameStore.ts"
+import { gameData } from "../game/state.ts"
+import { useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
 import { isHistoryShown } from "./Almanac.tsx"
 
@@ -105,8 +106,18 @@ function endText(span: LifeSpan, record: WorldRecord): string {
     return text + (record.life == span.life ? " · furthest" : "")
 }
 
+// What the Chronicle draws changes with the day reached by the life being
+// lived, the record, the lives kept (the oldest are dropped past a limit, so
+// the newest one counts too) and the events unlocked. It renders when one of
+// those does: about once a game day, not with every frame.
+function getChronicleKey(): string {
+    if (!isHistoryShown()) return ""
+    return [Math.floor(getWorldDay()), getRecord().day, gameData.lives.length, gameData.lives.at(-1)?.life,
+        events.filter(isEventUnlocked).length].join(" ")
+}
+
 export function Chronicle() {
-    useGame()
+    useGameValue(getChronicleKey)
     const [showAll, setShowAll] = useState(false)
     if (!isHistoryShown()) return null
 
