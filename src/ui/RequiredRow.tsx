@@ -7,9 +7,11 @@ import { gameData } from "../game/state.ts"
 import type { Job, Skill, Item, Requirement, TaskCondition } from "../game/classes.ts"
 import { daysToYears } from "../game/rules.ts"
 import { isUnlocked } from "../game/engine.ts"
-import { CoinParts } from "./CoinParts.tsx"
+import { FormattedCoins } from "./CoinParts.tsx"
+import { sameData, useGameValue } from "./gameStore.ts"
 import { classNames, removeSpaces } from "./classNames.ts"
-import { format } from "./format.ts"
+import { format, formatCoins } from "./format.ts"
+import type { CoinPart } from "./format.ts"
 
 type Entity = Job | Skill | Item
 
@@ -58,21 +60,45 @@ function needsOf(requirement: Requirement): Need[] {
     })
 }
 
-function NeedChip({need}: {need: Need}) {
-    const met = need.have >= need.need
-    const progress = Math.min(100, Math.max(0, need.have / need.need * 100))
+// What a chip shows for a need: coins as their parts, anything else as text
+interface ShownNeed {
+    kind: Need["kind"]
+    label: string
+    met: boolean
+    // From 0 to 100, to a tenth, so the chip doesn't render for changes too
+    // small to see
+    progress: number
+    text: string | null
+    have: CoinPart[] | null
+    need: CoinPart[] | null
+}
+
+function showNeed(need: Need): ShownNeed {
+    const coins = need.kind == "coins"
+    return {
+        kind: need.kind,
+        label: need.label,
+        met: need.have >= need.need,
+        progress: Math.round(Math.min(100, Math.max(0, need.have / need.need * 100)) * 10) / 10,
+        text: coins ? null : format(need.have) + " / " + format(need.need),
+        have: coins ? formatCoins(need.have) : null,
+        need: coins ? formatCoins(need.need) : null,
+    }
+}
+
+function NeedChip({need}: {need: ShownNeed}) {
     return (
-        <span className={classNames("need-chip", met && "met", need.kind == "evil" && "need-evil")}>
+        <span className={classNames("need-chip", need.met && "met", need.kind == "evil" && "need-evil")}>
             {need.label && <span className="need-label">{need.label}</span>}
             {" "}
             <strong className="need-value">
-                {need.kind == "coins"
-                    ? <><CoinParts coins={need.have} /> / <CoinParts coins={need.need} /></>
-                    : format(need.have) + " / " + format(need.need)}
+                {need.have && need.need
+                    ? <><FormattedCoins parts={need.have} /> / <FormattedCoins parts={need.need} /></>
+                    : need.text}
             </strong>
             {/* The numbers carry the meaning; the bar is only a glance */}
             {" "}
-            <span className="need-bar" aria-hidden="true"><span style={{width: progress + "%"}} /></span>
+            <span className="need-bar" aria-hidden="true"><span style={{width: need.progress + "%"}} /></span>
         </span>
     )
 }
@@ -103,7 +129,8 @@ export function isCategoryUnseen(categoryName: string): boolean {
     return !(unlock !== undefined && isUnlocked(unlock.id))
 }
 
-export function RequiredRow({categoryName, category, items}: {categoryName: string, category: string[], items: boolean}) {
+// What the row shows, or null while the category is out of sight
+function getRow(categoryName: string, category: string[], items: boolean) {
     const data: Record<string, Entity> = items ? gameData.itemData : gameData.taskData
     if (isCategoryUnseen(categoryName)) return null
     const locked = isCategoryHidden(categoryName)
@@ -112,20 +139,30 @@ export function RequiredRow({categoryName, category, items}: {categoryName: stri
     const hidesNext = unlock !== undefined && "hidesNext" in unlock && unlock.hidesNext
     const nextEntity = locked || hidesNext ? null : nextLocked(data, category)
     const requirement = locked && unlock ? gameData.requirements[unlock.name] : nextEntity ? gameData.requirements[nextEntity.name] : null
-    const needs = requirement ? needsOf(requirement) : []
-    const evilUnlock = locked && requirement?.type == "evil"
+    return {
+        locked,
+        next: nextEntity?.name ?? null,
+        needs: requirement ? needsOf(requirement).map(showNeed) : [],
+        evilUnlock: locked && requirement?.type == "evil",
+    }
+}
+
+export function RequiredRow({categoryName, category, items}: {categoryName: string, category: string[], items: boolean}) {
+    const row = useGameValue(() => getRow(categoryName, category, items), sameData)
+    if (!row) return null
+    const {locked, next, needs, evilUnlock} = row
 
     // Its own row, so the table keeps one row per line; the cell spans every column
     return (
         <tr className="next-tr">
             <td id={categoryName} colSpan={7}
-                className={classNames("requiredRow", removeSpaces(categoryName), locked && "locked", !locked && !nextEntity && "hiddenTask")}>
+                className={classNames("requiredRow", removeSpaces(categoryName), locked && "locked", !locked && !next && "hiddenTask")}>
                 <div className="next-row">
                     <span className={classNames("next-lead", evilUnlock && "need-evil")}>
                         <LockIcon />
                         {locked
                             ? <span>{evilUnlock ? "Embrace evil at the Amulet to unlock" : "Unlocks with"}</span>
-                            : <span>Next: <strong>{nextEntity?.name}</strong>{items && " · shows up once you've held"}</span>}
+                            : <span>Next: <strong>{next}</strong>{items && " · shows up once you've held"}</span>}
                     </span>
                     {needs.map((need, i) => <Fragment key={i}>{" "}<NeedChip need={need} /></Fragment>)}
                 </div>

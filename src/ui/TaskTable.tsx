@@ -1,17 +1,19 @@
 // The Jobs and Skills tables: a header for each category, a row for each job
-// or skill, and what the next one needs.
+// or skill, and what the next one needs. Each row picks out what it shows, so
+// it renders only when that changes.
 
 import { Fragment } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, idsByName, jobCategories, skillCategories, tooltips } from "../game/data.ts"
 import { Job, Skill } from "../game/classes.ts"
 import { setSkillSkipped, setTask } from "../game/engine.ts"
-import { requestRender, useGame } from "./gameStore.ts"
-import { CoinParts, EmptyCoinParts } from "./CoinParts.tsx"
+import { gameData } from "../game/state.ts"
+import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
+import { EmptyCoinParts, FormattedCoins } from "./CoinParts.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { RequiredRow, isCategoryHidden, isCategoryUnseen } from "./RequiredRow.tsx"
 import { classNames, removeSpaces } from "./classNames.ts"
-import { format, splitEffect } from "./format.ts"
+import { format, formatCoins, splitEffect } from "./format.ts"
 import { fillStyle } from "./fill.ts"
 import { useLongPressTooltip } from "./useLongPressTooltip.ts"
 
@@ -25,7 +27,6 @@ for (const name of Object.values(skillCategories).flat()) {
 }
 
 export function TaskTable({kind}: {kind: TaskKind}) {
-    const game = useGame()
     const categories = kind == "jobs" ? jobCategories : skillCategories
     return (
         <div className="table-scroll">
@@ -34,7 +35,7 @@ export function TaskTable({kind}: {kind: TaskKind}) {
                     {Object.entries(categories).map(([categoryName, names]) => (
                         <Fragment key={categoryName}>
                             <TaskHeaderRow kind={kind} categoryName={categoryName} />
-                            {names.map(name => <TaskRow key={name} task={game.taskData[name]} categoryName={categoryName} />)}
+                            {names.map(name => <TaskRow key={name} name={name} categoryName={categoryName} />)}
                             <RequiredRow categoryName={categoryName} category={names} items={false} />
                         </Fragment>
                     ))}
@@ -45,32 +46,56 @@ export function TaskTable({kind}: {kind: TaskKind}) {
 }
 
 function TaskHeaderRow({kind, categoryName}: {kind: TaskKind, categoryName: string}) {
-    const game = useGame()
+    const header = useGameValue(() => ({
+        locked: isCategoryHidden(categoryName),
+        unseen: isCategoryUnseen(categoryName),
+        maxLevelShown: gameData.rebirthOneCount > 0,
+        skipShown: kind == "skills" && gameData.automation.autoLearn,
+    }), shallowEqual)
     return (
-        <tr className={classNames(removeSpaces(categoryName), "headerRow", isCategoryHidden(categoryName) && "locked-header", isCategoryUnseen(categoryName) && "hidden")}
+        <tr className={classNames(removeSpaces(categoryName), "headerRow", header.locked && "locked-header", header.unseen && "hidden")}
             style={{"--cat": headerRowColors[categoryName as keyof typeof headerRowColors]} as CSSProperties}>
             <th className="category">{categoryName}</th>
             <th>Level</th>
             <th className="valueType">{kind == "jobs" ? "Income / day" : "Effect"}</th>
             <th>XP / day</th>
             <th>XP left</th>
-            <th className={classNames("maxLevel", !(game.rebirthOneCount > 0) && "hidden")}>Max lvl</th>
-            <th className="skipSkill" style={{display: kind == "skills" && game.automation.autoLearn ? "table-cell" : "none"}}>Skip</th>
+            <th className={classNames("maxLevel", !header.maxLevelShown && "hidden")}>Max lvl</th>
+            <th className="skipSkill" style={{display: header.skipShown ? "table-cell" : "none"}}>Skip</th>
         </tr>
     )
 }
 
-function TaskRow({task, categoryName}: {task: Job | Skill, categoryName: string}) {
-    const game = useGame()
-    const name = task.name
-    const isCurrent = task == game.currentJob || task == game.currentSkill
-    const effect = task instanceof Skill ? splitEffect(task.getEffectDescription()) : null
+// Everything a row shows for a job or skill
+function getRow(name: string, categoryName: string) {
+    const task = gameData.taskData[name]
+    const isSkill = task instanceof Skill
+    const effect = isSkill ? splitEffect(task.getEffectDescription()) : null
+    return {
+        level: task.level,
+        current: task == gameData.currentJob || task == gameData.currentSkill,
+        share: task.xp / task.getMaxXp(),
+        multiplier: effect?.multiplier ?? null,
+        what: effect?.what ?? null,
+        income: task instanceof Job ? formatCoins(task.getIncome()) : null,
+        xpGain: format(task.getXpGain()),
+        xpLeft: format(task.getXpLeft()),
+        maxLevel: task.maxLevel,
+        maxLevelShown: gameData.rebirthOneCount > 0,
+        isSkill,
+        skipShown: isSkill && gameData.automation.autoLearn,
+        skipped: isSkill && gameData.automation.skippedSkills.has(idsByName[name]),
+        // A locked or unseen category keeps its rows out of sight, whatever they need
+        hidden: !gameData.requirements[name].completed || isCategoryHidden(categoryName) || isCategoryUnseen(categoryName),
+    }
+}
+
+function TaskRow({name, categoryName}: {name: string, categoryName: string}) {
+    const row = useGameValue(() => getRow(name, categoryName), sameData)
     const tooltipId = "tip-" + removeSpaces(name)
     const longPress = useLongPressTooltip()
-    // A locked or unseen category keeps its rows out of sight, whatever they need
-    const hidden = !game.requirements[name].completed || isCategoryHidden(categoryName) || isCategoryUnseen(categoryName)
     return (
-        <tr id={"row " + name} className={classNames(hidden && "hidden")}
+        <tr id={"row " + name} className={classNames(row.hidden && "hidden")}
             style={{"--cat": headerRowColors[categoryName as keyof typeof headerRowColors]} as CSSProperties}>
             <td>
                 {/* A real button, so the keyboard can start the task too */}
@@ -78,31 +103,31 @@ function TaskRow({task, categoryName}: {task: Job | Skill, categoryName: string}
                     {/* Keyed by level so a level-up resets the bar instead of sliding it back */}
                     {/* The track clips the sliding fill; the tooltip stays outside it */}
                     <span className="progress-track">
-                        <span key={task.level} className={classNames("progress-fill progressFill", isCurrent && "current")}
-                            style={fillStyle(task.xp / task.getMaxXp())}></span>
+                        <span key={row.level} className={classNames("progress-fill progressFill", row.current && "current")}
+                            style={fillStyle(row.share)}></span>
                     </span>
                     <span className="progress-text name">{name}</span>
                     <span className="bar-end">
-                        {isCurrent && <span className="active-badge">Active</span>}
+                        {row.current && <span className="active-badge">Active</span>}
                         {/* Phones show the level inside the bar (hidden from 640px) */}
-                        <span className="phone-level">{"lvl " + task.level}</span>
+                        <span className="phone-level">{"lvl " + row.level}</span>
                     </span>
                     <span className="tooltipText" id={tooltipId} aria-hidden="true">{tooltips[name]}</span>
                 </button>
             </td>
-            <td className="level">{task.level}</td>
+            <td className="level">{row.level}</td>
             <td className="value">
-                <div className="effect">{effect && <><strong>{effect.multiplier}</strong> <span>{effect.what}</span></>}</div>
-                <div className="income">{task instanceof Job ? <CoinParts coins={task.getIncome()} /> : <EmptyCoinParts />}</div>
+                <div className="effect">{row.multiplier !== null && <><strong>{row.multiplier}</strong> <span>{row.what}</span></>}</div>
+                <div className="income">{row.income ? <FormattedCoins parts={row.income} /> : <EmptyCoinParts />}</div>
             </td>
-            <td className="xpGain">{format(task.getXpGain())}</td>
-            <td className="xpLeft">{format(task.getXpLeft())}</td>
-            <td className={classNames("maxLevel", !(game.rebirthOneCount > 0) && "hidden")}>{task.maxLevel}</td>
-            <td className="skipSkill" style={{display: task instanceof Skill && game.automation.autoLearn ? "table-cell" : "none"}}>
+            <td className="xpGain">{row.xpGain}</td>
+            <td className="xpLeft">{row.xpLeft}</td>
+            <td className={classNames("maxLevel", !row.maxLevelShown && "hidden")}>{row.maxLevel}</td>
+            <td className="skipSkill" style={{display: row.skipShown ? "table-cell" : "none"}}>
                 {" "}
                 {/* The label makes the whole 44px cell on phones tap to toggle */}
-                <label className="skip-label"><Checkbox className="checkbox" ariaLabel={"Skip " + name} checked={task instanceof Skill && game.automation.skippedSkills.has(idsByName[name])}
-                    onToggle={task instanceof Skill ? skipSkill[name] : undefined} /></label>
+                <label className="skip-label"><Checkbox className="checkbox" ariaLabel={"Skip " + name} checked={row.skipped}
+                    onToggle={row.isSkill ? skipSkill[name] : undefined} /></label>
                 {" "}
             </td>
         </tr>
