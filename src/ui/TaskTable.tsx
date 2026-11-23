@@ -2,7 +2,7 @@
 // or skill, and what the next one needs. Each row picks out what it shows, so
 // it renders only when that changes.
 
-import { Fragment, useRef } from "react"
+import { Fragment, memo, useRef } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, idsByName, jobCategories, skillCategories, tooltips } from "../game/data.ts"
 import { Job, Skill } from "../game/classes.ts"
@@ -45,7 +45,7 @@ export function TaskTable({kind}: {kind: TaskKind}) {
     )
 }
 
-function TaskHeaderRow({kind, categoryName}: {kind: TaskKind, categoryName: string}) {
+const TaskHeaderRow = memo(function TaskHeaderRow({kind, categoryName}: {kind: TaskKind, categoryName: string}) {
     const header = useGameValue(() => ({
         locked: isCategoryHidden(categoryName),
         unseen: isCategoryUnseen(categoryName),
@@ -64,7 +64,7 @@ function TaskHeaderRow({kind, categoryName}: {kind: TaskKind, categoryName: stri
             <th className="skipSkill" style={{display: header.skipShown ? "table-cell" : "none"}}>Skip</th>
         </tr>
     )
-}
+})
 
 // Everything a row shows for a job or skill
 function getRow(name: string, categoryName: string) {
@@ -89,7 +89,7 @@ function getRow(name: string, categoryName: string) {
     }
 }
 
-function TaskRow({name, categoryName}: {name: string, categoryName: string}) {
+const TaskRow = memo(function TaskRow({name, categoryName}: {name: string, categoryName: string}) {
     const row = useGameValue(() => getRow(name, categoryName), sameData)
     const fill = useRef<HTMLSpanElement>(null)
     useFillBar(fill, () => gameData.taskData[name].xp / gameData.taskData[name].getMaxXp())
@@ -131,4 +131,4 @@ function TaskRow({name, categoryName}: {name: string, categoryName: string}) {
             </td>
         </tr>
     )
-}
+})

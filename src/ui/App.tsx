@@ -1,10 +1,11 @@
 // The whole page: the header, the sidebar, the tab bar and the selected tab.
 
-import { useEffect, useState } from "react"
+import { memo, useEffect, useState } from "react"
 import { flushSync } from "react-dom"
 import type { ReactNode } from "react"
 import { isUnlocked } from "../game/engine.ts"
-import { useGame } from "./gameStore.ts"
+import { gameData } from "../game/state.ts"
+import { useGameValue } from "./gameStore.ts"
 import { Sidebar } from "./Sidebar.tsx"
 import { Header } from "./Header.tsx"
 import { PhoneHeader } from "./PhoneHeader.tsx"
@@ -53,8 +54,14 @@ function getStickyHeight(): number {
     return height
 }
 
+// The tabs unlocked so far, as their names: "jobs skills shop"
+function getUnlockedTabs(): string {
+    return tabs.filter(tab => !tab.unlock || isUnlocked(tab.unlock)).map(tab => tab.name).join(" ")
+}
+
+// The page renders only when a tab is picked, a tab unlocks or a life ends;
+// everything in it picks out what it shows itself
 export function App() {
-    const game = useGame()
     const [selectedTab, setSelectedTab] = useState<TabName>("jobs")
     const [sidebarOpen, setSidebarOpen] = useSidebarOpen()
 
@@ -70,7 +77,8 @@ export function App() {
     }
 
     // After a rebirth the page goes back to the Jobs tab
-    const rebirths = game.rebirthOneCount + game.rebirthTwoCount
+    const rebirths = useGameValue(() => gameData.rebirthOneCount + gameData.rebirthTwoCount)
+    const unlockedTabs = useGameValue(getUnlockedTabs).split(" ")
     const [shownRebirths, setShownRebirths] = useState(rebirths)
     if (rebirths != shownRebirths) {
         setShownRebirths(rebirths)
@@ -91,10 +99,10 @@ export function App() {
                     </details>
                     {" "}
                     <div className="main">
-                        <nav aria-label="Sections" className="panel tab-bar" style={{"--tab-count": tabs.filter(tab => !tab.unlock || isUnlocked(tab.unlock)).length} as React.CSSProperties}>
+                        <nav aria-label="Sections" className="panel tab-bar" style={{"--tab-count": unlockedTabs.length} as React.CSSProperties}>
                             {" "}
                             {tabs.map(tab => (
-                                <TabButton key={tab.name} tab={tab} selected={tab.name == selectedTab} onSelect={() => setSelectedTab(tab.name)} />
+                                <TabButton key={tab.name} tab={tab} unlocked={unlockedTabs.includes(tab.name)} selected={tab.name == selectedTab} onSelect={setSelectedTab} />
                             ))}
                         </nav>
                         {" "}
@@ -120,17 +128,18 @@ export function App() {
     )
 }
 
-function TabButton({tab, selected, onSelect}: {tab: typeof tabs[number], selected: boolean, onSelect: () => void}) {
+// onSelect: picks a tab by name; it stays the same function between renders
+const TabButton = memo(function TabButton({tab, unlocked, selected, onSelect}: {tab: typeof tabs[number], unlocked: boolean, selected: boolean, onSelect: (name: TabName) => void}) {
     return (
         <>
-            <button type="button" id={tab.id} data-tab={tab.name} onClick={onSelect} aria-current={selected ? "page" : undefined}
-                className={classNames("w3-button w3-bar-item tabButton", tab.end && "tab-end", tab.unlock && !isUnlocked(tab.unlock) && "hidden", selected && "w3-blue-gray")}>
+            <button type="button" id={tab.id} data-tab={tab.name} onClick={() => onSelect(tab.name)} aria-current={selected ? "page" : undefined}
+                className={classNames("w3-button w3-bar-item tabButton", tab.end && "tab-end", !unlocked && "hidden", selected && "w3-blue-gray")}>
                 {tab.label}
             </button>
             {" "}
         </>
     )
-}
+})
 
 function Tab({name, selected, children}: {name: TabName, selected: TabName, children: ReactNode}) {
     return (

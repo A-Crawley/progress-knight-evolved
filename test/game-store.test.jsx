@@ -8,7 +8,7 @@ import { act, cleanup, render } from "@testing-library/react"
 import { initGameData, update, rebirthOne } from "../src/game/engine.ts"
 import { gameData } from "../src/game/state.ts"
 import { serializeGameData } from "../src/game/save.ts"
-import { getSnapshot, onGameSteps, requestRender, renderInterval, stepsPerRender, subscribe, useGame,
+import { getSnapshot, onGameSteps, requestRender, renderInterval, stepsPerRender, subscribe,
     useGameValue, shallowEqual, sameData } from "../src/ui/gameStore.ts"
 
 initGameData()
@@ -52,11 +52,11 @@ test("requestRender moves the frame on and tells subscribers", async () => {
 })
 
 function Coins() {
-    const game = useGame()
-    return <span>{Math.floor(game.coins)}</span>
+    const coins = useGameValue(() => Math.floor(gameData.coins))
+    return <span>{coins}</span>
 }
 
-test("a component using useGame shows the state as of the last frame", async () => {
+test("a component using useGameValue shows the state as of the last frame", async () => {
     const { container } = render(<Coins />)
     const shown = container.textContent
     update()
@@ -65,18 +65,6 @@ test("a component using useGame shows the state as of the last frame", async () 
     assert.equal(container.textContent, String(Math.floor(gameData.coins)))
 })
 
-test("rendering with the store never changes the game state", async () => {
-    function Everything() {
-        const game = useGame()
-        return <span>{JSON.stringify(serializeGameData())}{game.days}</span>
-    }
-    rebirthOne()
-    gameData.coins = 1e9
-    const before = JSON.stringify(serializeGameData())
-    render(<Everything />)
-    act(() => { requestRender(); requestRender() })
-    assert.equal(JSON.stringify(serializeGameData()), before)
-})
 
 test("a component using useGameValue renders again only when its value changes", async () => {
     let renders = 0
@@ -126,6 +114,8 @@ test("shallowEqual and sameData", () => {
 })
 
 test("picking values out with useGameValue never changes the game state", async () => {
+    rebirthOne()
+    gameData.coins = 1e9
     function Everything() {
         const text = useGameValue(() => JSON.stringify(serializeGameData()))
         return <span>{text}</span>

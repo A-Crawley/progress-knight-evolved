@@ -1,7 +1,7 @@
 // The Shop: properties and misc items, each with whether it's in use, its
 // effect and its daily upkeep, and what the next one needs.
 
-import { Fragment } from "react"
+import { Fragment, memo } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, itemCategories, tooltips } from "../game/data.ts"
 import { setMisc, setProperty } from "../game/engine.ts"
@@ -81,7 +81,7 @@ function getRow(name: string, categoryName: string) {
     }
 }
 
-function ItemRow({name, isProperty, categoryName}: {name: string, isProperty: boolean, categoryName: string}) {
+const ItemRow = memo(function ItemRow({name, isProperty, categoryName}: {name: string, isProperty: boolean, categoryName: string}) {
     const {hidden, active: isActive, affordable, multiplier, what, expense} = useGameValue(() => getRow(name, categoryName), sameData)
     const tooltipId = "tip-" + removeSpaces(name)
     const longPress = useLongPressTooltip()
@@ -106,4 +106,4 @@ function ItemRow({name, isProperty, categoryName}: {name: string, isProperty: bo
             <td className={classNames("expense", !expense && "free")}>{expense ? <FormattedCoins parts={expense} /> : "Free"}</td>
         </tr>
     )
-}
+})

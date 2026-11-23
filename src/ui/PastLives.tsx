@@ -2,7 +2,7 @@
 // being lived, each with the date it reached and the record marked. A table
 // from 640px up, compact cards on phones (css/styles.css).
 
-import { useState } from "react"
+import { memo, useState } from "react"
 import { getBestOfLife, getLifePeakCoins, getTaskById } from "../game/engine.ts"
 import { Job, Skill } from "../game/classes.ts"
 import { gameData } from "../game/state.ts"
@@ -72,7 +72,7 @@ function getRows(showAll: boolean): Row[] {
     return rows
 }
 
-export function PastLives() {
+export const PastLives = memo(function PastLives() {
     const [showAll, setShowAll] = useState(false)
     const rows = useGameValue(() => getRows(showAll), sameData)
     const lives = useGameValue(() => gameData.lives.length)
@@ -118,4 +118,4 @@ export function PastLives() {
             )}
         </section>
     )
-}
+})

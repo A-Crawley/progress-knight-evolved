@@ -1,13 +1,12 @@
 // Connects the game state to React. The state stays a plain object that the
-// game loop changes outside React (see state.ts). React components read it
-// directly while rendering; this store only tells them when to render again:
-// its snapshot is a frame number, which moves on every 100 ms of game time
-// and whenever the player does something.
+// game loop changes outside React (see state.ts). A frame comes every 100 ms
+// of game time and whenever the player does something; on each frame, every
+// component checks the values it shows (useGameValue) and renders again only
+// if one has changed. The progress bars don't render at all: fillBar.ts
+// paints them.
 
 import { useRef, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
-import { gameData } from "../game/state.ts"
-import type { GameData } from "../game/state.ts"
 import { updateSpeed } from "../game/rules.ts"
 
 let frame = 0
@@ -22,7 +21,8 @@ export function getSnapshot(): number {
     return frame
 }
 
-// Shows the current game state on the next render
+// Shows the current game state on the next render. Player actions call the
+// engine's functions and then this; nothing changes the state while rendering.
 export function requestRender(): void {
     frame++
     for (const listener of listeners) listener()
@@ -90,12 +90,4 @@ export function sameData<T>(a: T, b: T): boolean {
     const keysA = Object.keys(a) as (keyof T)[]
     if (keysA.length != Object.keys(b).length) return false
     return keysA.every(key => Object.prototype.hasOwnProperty.call(b, key) && sameData(a[key], b[key]))
-}
-
-// The game state, for a component that shows it. The component renders
-// again with every frame. Never change the state while rendering: player
-// actions call the engine's functions and then requestRender().
-export function useGame(): GameData {
-    useSyncExternalStore(subscribe, getSnapshot)
-    return gameData
 }

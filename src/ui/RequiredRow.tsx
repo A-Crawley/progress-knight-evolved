@@ -1,7 +1,7 @@
 // The row under a category: what the next locked job, skill or item in it
 // needs, or, while the whole category is locked, what unlocks it.
 
-import { Fragment } from "react"
+import { Fragment, memo } from "react"
 import { unlocks } from "../game/data.ts"
 import { gameData } from "../game/state.ts"
 import type { Job, Skill, Item, Requirement, TaskCondition } from "../game/classes.ts"
@@ -147,7 +147,7 @@ function getRow(categoryName: string, category: string[], items: boolean) {
     }
 }
 
-export function RequiredRow({categoryName, category, items}: {categoryName: string, category: string[], items: boolean}) {
+export const RequiredRow = memo(function RequiredRow({categoryName, category, items}: {categoryName: string, category: string[], items: boolean}) {
     const row = useGameValue(() => getRow(categoryName, category, items), sameData)
     if (!row) return null
     const {locked, next, needs, evilUnlock} = row
@@ -169,4 +169,4 @@ export function RequiredRow({categoryName, category, items}: {categoryName: stri
             </td>
         </tr>
     )
-}
+})
