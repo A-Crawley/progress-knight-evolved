@@ -7,10 +7,10 @@ export default [
     {
         ignores: ["node_modules/", "dist/", "css/"],
     },
-    ...tseslint.configs.recommended.map(config => ({ ...config, files: ["src/**/*.{ts,tsx}", "test/types/**/*.ts"] })),
+    ...tseslint.configs.recommended.map(config => ({ ...config, files: ["src/**/*.{ts,tsx}", "test/types/**/*.ts", "tools/**/*.ts"] })),
     {
-        // The game's TypeScript modules, and type tests
-        files: ["src/**/*.{ts,tsx}", "test/types/**/*.ts"],
+        // The game's TypeScript modules, type tests and the bot's strategy
+        files: ["src/**/*.{ts,tsx}", "test/types/**/*.ts", "tools/**/*.ts"],
         languageOptions: {
             globals: globals.browser,
         },
@@ -29,7 +29,7 @@ export default [
         ...reactHooks.configs.flat.recommended,
     },
     {
-        files: ["test/**/*.{js,jsx}", "*.config.js"],
+        files: ["test/**/*.{js,jsx}", "tools/**/*.js", "*.config.js"],
         languageOptions: {
             sourceType: "module",
             ecmaVersion: 2022,

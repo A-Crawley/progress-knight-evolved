@@ -12,5 +12,5 @@
         "types": [],
         "jsx": "react-jsx"
     },
-    "include": ["src", "test/types"]
+    "include": ["src", "test/types", "tools"]
 }
