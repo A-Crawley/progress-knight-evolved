@@ -10,6 +10,12 @@ export function CoinParts({coins}: {coins: number}) {
     return <Parts parts={formatCoins(coins)} />
 }
 
+// The same, from parts already formatted (formatCoins), for a component that
+// picks the parts out of the game state so it only renders when they change
+export function FormattedCoins({parts}: {parts: CoinPart[]}) {
+    return <Parts parts={parts} />
+}
+
 // The same four parts with nothing in them, for amounts that aren't shown
 export function EmptyCoinParts() {
     return <Parts parts={[{text: ""}, {text: ""}, {text: ""}, {text: ""}]} />

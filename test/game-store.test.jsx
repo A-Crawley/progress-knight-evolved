@@ -8,7 +8,8 @@ import { act, cleanup, render } from "@testing-library/react"
 import { initGameData, update, rebirthOne } from "../src/game/engine.ts"
 import { gameData } from "../src/game/state.ts"
 import { serializeGameData } from "../src/game/save.ts"
-import { getSnapshot, onGameSteps, requestRender, renderInterval, stepsPerRender, subscribe, useGame } from "../src/ui/gameStore.ts"
+import { getSnapshot, onGameSteps, requestRender, renderInterval, stepsPerRender, subscribe,
+    useGameValue, shallowEqual, sameData } from "../src/ui/gameStore.ts"
 
 initGameData()
 update()
@@ -51,11 +52,11 @@ test("requestRender moves the frame on and tells subscribers", async () => {
 })
 
 function Coins() {
-    const game = useGame()
-    return <span>{Math.floor(game.coins)}</span>
+    const coins = useGameValue(() => Math.floor(gameData.coins))
+    return <span>{coins}</span>
 }
 
-test("a component using useGame shows the state as of the last frame", async () => {
+test("a component using useGameValue shows the state as of the last frame", async () => {
     const { container } = render(<Coins />)
     const shown = container.textContent
     update()
@@ -64,13 +65,61 @@ test("a component using useGame shows the state as of the last frame", async () 
     assert.equal(container.textContent, String(Math.floor(gameData.coins)))
 })
 
-test("rendering with the store never changes the game state", async () => {
-    function Everything() {
-        const game = useGame()
-        return <span>{JSON.stringify(serializeGameData())}{game.days}</span>
+
+test("a component using useGameValue renders again only when its value changes", async () => {
+    let renders = 0
+    function Level() {
+        renders++
+        const level = useGameValue(() => gameData.taskData["Strength"].level)
+        return <span>{level}</span>
     }
+    const { container } = render(<Level />)
+    const start = renders
+    act(() => { requestRender(); requestRender(); requestRender() })
+    assert.equal(renders, start, "same value, no render")
+    gameData.taskData["Strength"].level += 1
+    act(() => requestRender())
+    assert.equal(renders, start + 1)
+    assert.equal(container.textContent, String(gameData.taskData["Strength"].level))
+    gameData.taskData["Strength"].level -= 1
+})
+
+test("an object value with an equality function only renders when its contents change", async () => {
+    let renders = 0
+    function Purse() {
+        renders++
+        const purse = useGameValue(() => ({coins: Math.floor(gameData.coins), paused: gameData.paused}), shallowEqual)
+        return <span>{purse.coins + " " + purse.paused}</span>
+    }
+    const { container } = render(<Purse />)
+    const start = renders
+    act(() => { requestRender(); requestRender() })
+    assert.equal(renders, start, "a new but equal object doesn't render")
+    gameData.coins += 5
+    act(() => requestRender())
+    assert.equal(renders, start + 1)
+    assert.equal(container.textContent, Math.floor(gameData.coins) + " " + gameData.paused)
+})
+
+test("shallowEqual and sameData", () => {
+    assert.ok(shallowEqual({a: 1, b: "x"}, {a: 1, b: "x"}))
+    assert.ok(!shallowEqual({a: 1}, {a: 1, b: 2}))
+    assert.ok(!shallowEqual({a: [1]}, {a: [1]}), "shallow: nested arrays are compared by identity")
+    assert.ok(shallowEqual([1, 2], [1, 2]))
+    assert.ok(shallowEqual(NaN, NaN))
+    assert.ok(sameData({a: [1, {b: "x"}]}, {a: [1, {b: "x"}]}))
+    assert.ok(!sameData({a: [1, {b: "x"}]}, {a: [1, {b: "y"}]}))
+    assert.ok(!sameData([1], {0: 1}))
+    assert.ok(!sameData(null, {}))
+})
+
+test("picking values out with useGameValue never changes the game state", async () => {
     rebirthOne()
     gameData.coins = 1e9
+    function Everything() {
+        const text = useGameValue(() => JSON.stringify(serializeGameData()))
+        return <span>{text}</span>
+    }
     const before = JSON.stringify(serializeGameData())
     render(<Everything />)
     act(() => { requestRender(); requestRender() })

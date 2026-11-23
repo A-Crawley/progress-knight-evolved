@@ -122,7 +122,7 @@ test("a locked job category lists the levels that unlock it", async () => {
 test("the progress bar shows xp towards the next level and highlights the current task", async () => {
     const game = await renderComponent("TaskTable.tsx", "TaskTable", { kind: "jobs" })
     const fill = cell("Beggar", "progressFill")
-    assert.equal(fill.style.getPropertyValue("--fill"), String(2 / 50))
+    assert.equal(fill.style.transform, game.fillTransform(2 / 50))
     assert.ok(fill.classList.contains("current"))
     game.task("Farmer").level = 0
     game.engine.setTask("Farmer")

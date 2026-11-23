@@ -6,7 +6,7 @@
 // list of the next few events. It appears with the Amulet tab, and stays
 // once a life has been lived.
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { calendar } from "../game/data.ts"
 import type { SeasonId } from "../game/data.ts"
 import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calendar.ts"
@@ -14,11 +14,10 @@ import { isUnlocked } from "../game/engine.ts"
 import { gameData } from "../game/state.ts"
 import { getActiveEvents, getUpcomingEvents, isNew } from "../game/events.ts"
 import { getRecord, reachedText, toRoman } from "../game/history.ts"
-import type { EventOccurrence } from "../game/events.ts"
 import { effectColor, effectText, seasonYearText, untilText } from "./eventText.ts"
-import { useGame } from "./gameStore.ts"
+import { sameData, useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
-import { fillStyle } from "./fill.ts"
+import { useFillBar } from "./fillBar.ts"
 import { SeasonIcon } from "./SeasonIcon.tsx"
 
 // Whether the calendar's history is shown yet: the Almanac, and the
@@ -31,22 +30,62 @@ export function isHistoryShown(): boolean {
 // Events listed under "Coming up"
 const UPCOMING_EVENTS = 3
 
-export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
-    useGame()
-    const [expanded, setExpanded] = useState(false)
+// Everything the Almanac shows, so it renders only when some of it changes
+function getView(expanded: boolean) {
     const today = getWorldDay()
     const date = toDate(today)
     const season = date.season
     const next = calendar.seasons[(date.seasonIndex + 1) % calendar.seasons.length]
     const left = daysLeftInSeason(today)
-    const running = getActiveEvents()
     const upcoming = getUpcomingEvents(today, UPCOMING_EVENTS)
     const showList = expanded && upcoming.length > 0
+    return {
+        shown: isHistoryShown(),
+        hasUpcoming: upcoming.length > 0,
+        showList,
+        season: season.id as SeasonId,
+        date: formatDate(date),
+        toNext: left + (left == 1 ? " day" : " days") + " to " + next.name,
+        barLabel: season.name + ", day " + date.dayOfSeason + " of " + season.days,
+        record: getRecordLine(),
+        running: getActiveEvents().map(occurrence => ({
+            id: occurrence.event.id,
+            name: occurrence.event.name,
+            began: isNew(occurrence, today),
+            left: left + (left == 1 ? " day left" : " days left"),
+            effects: occurrence.event.effects.map(effect => ({label: effect.label, text: effectText(effect), color: effectColor(effect, true)})),
+            description: occurrence.event.description,
+        })),
+        upcoming: (showList ? upcoming : []).map(occurrence => ({
+            key: occurrence.event.id + " " + occurrence.year,
+            season: occurrence.event.season as SeasonId,
+            name: occurrence.event.name,
+            until: untilText(occurrence.start - today),
+            when: seasonYearText(occurrence) + " · " + occurrence.event.effects.map(effectText).join(", "),
+        })),
+        nextEvent: upcoming.length > 0 ? {name: upcoming[0].event.name, until: untilText(upcoming[0].start - today)} : null,
+    }
+}
+
+// How far through this season the world is, for the season bar
+function getSeasonShare(): number {
+    const date = toDate(getWorldDay())
+    return (date.dayOfSeason - 1) / date.season.days
+}
+
+type RunningEvent = ReturnType<typeof getView>["running"][number]
+
+export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
+    const [expanded, setExpanded] = useState(false)
+    const view = useGameValue(() => getView(expanded), sameData)
+    const {showList, running, upcoming} = view
+    const seasonFill = useRef<HTMLDivElement>(null)
+    useFillBar(seasonFill, getSeasonShare)
     return (
-        <section id="almanac" aria-labelledby="almanacLabel" className={classNames("card almanac", !isHistoryShown() && "hidden")}>
+        <section id="almanac" aria-labelledby="almanacLabel" className={classNames("card almanac", !view.shown && "hidden")}>
             <div className="almanac-head">
                 <h2 id="almanacLabel" className="card-label">Almanac</h2>
-                {upcoming.length > 0 && (
+                {view.hasUpcoming && (
                     <button type="button" className="almanac-toggle" aria-expanded={showList} aria-controls="almanacUpcoming" onClick={() => setExpanded(!expanded)}>
                         {showList ? "Hide" : "Coming up"}
                         <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -56,38 +95,36 @@ export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
             </div>
             <div className="almanac-now">
                 <div className="almanac-line">
-                    <span className="almanac-date"><SeasonIcon season={season.id as SeasonId} /><span id="almanacDate">{formatDate(date)}</span></span>
-                    <span className="card-note almanac-next">{left + (left == 1 ? " day" : " days") + " to " + next.name}</span>
+                    <span className="almanac-date"><SeasonIcon season={view.season} /><span id="almanacDate">{view.date}</span></span>
+                    <span className="card-note almanac-next">{view.toNext}</span>
                 </div>
-                <div className="life-bar almanac-bar" role="img" aria-label={season.name + ", day " + date.dayOfSeason + " of " + season.days}>
-                    {/* Keyed so a new season starts its bar afresh instead of sliding it back */}
-                    <div key={date.year + " " + season.id} className="life-bar-fill"
-                        style={{...fillStyle((date.dayOfSeason - 1) / season.days), backgroundColor: "var(--pk-season-" + season.id + ")"}}></div>
+                <div className="life-bar almanac-bar" role="img" aria-label={view.barLabel}>
+                    <div ref={seasonFill} className="life-bar-fill" style={{backgroundColor: "var(--pk-season-" + view.season + ")"}}></div>
                 </div>
             </div>
-            <RecordLine />
-            {running.map(occurrence => <EventBox key={occurrence.event.id} occurrence={occurrence} today={today} />)}
+            <RecordLine record={view.record} />
+            {running.map(event => <EventBox key={event.id} event={event} />)}
             {showList && (
                 <div id="almanacUpcoming" className="almanac-upcoming">
                     <h3 className="card-label">Coming up</h3>
                     {upcoming.map(occurrence => (
-                        <div key={occurrence.event.id + " " + occurrence.year} className="almanac-coming">
+                        <div key={occurrence.key} className="almanac-coming">
                             <span className="almanac-line">
-                                <span className="almanac-coming-name"><SeasonIcon season={occurrence.event.season as SeasonId} size={14} />{occurrence.event.name}</span>
+                                <span className="almanac-coming-name"><SeasonIcon season={occurrence.season} size={14} />{occurrence.name}</span>
                                 {" "}
-                                <span className="card-note">{untilText(occurrence.start - today)}</span>
+                                <span className="card-note">{occurrence.until}</span>
                             </span>
                             {" "}
-                            <span className="card-note">{seasonYearText(occurrence) + " · " + occurrence.event.effects.map(effectText).join(", ")}</span>
+                            <span className="card-note">{occurrence.when}</span>
                         </div>
                     ))}
                 </div>
             )}
-            {running.length == 0 && !showList && upcoming.length > 0 && (
+            {running.length == 0 && !showList && view.nextEvent && (
                 <span className="card-note almanac-line almanac-next-event">
-                    <span>Next: <strong>{upcoming[0].event.name}</strong></span>
+                    <span>Next: <strong>{view.nextEvent.name}</strong></span>
                     {" "}
-                    <span>{untilText(upcoming[0].start - today)}</span>
+                    <span>{view.nextEvent.until}</span>
                 </span>
             )}
             <button type="button" className="almanac-link" onClick={onOpenChronicle}>
@@ -101,47 +138,54 @@ export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
 // "Furthest: Winter 1296 · life III, age 110", or "New furthest · past
 // Winter 1296" while this life is beyond every life before it. A first life
 // has nothing to beat, so no line.
-function RecordLine() {
+type RecordView = {isNew: true, past: string} | {isNew: false, reached: string, who: string} | null
+
+function getRecordLine(): RecordView {
     const record = getRecord()
     if (record.living && record.previous === null) return null
-    if (record.living) {
+    if (record.living) return {isNew: true, past: "past " + reachedText(record.previous ?? record.day)}
+    return {isNew: false, reached: reachedText(record.day), who: (record.life === null ? "" : "life " + toRoman(record.life) + ", ") + "age " + record.age}
+}
+
+function RecordLine({record}: {record: RecordView}) {
+    if (!record) return null
+    if (record.isNew) {
         return (
             <span className="card-note almanac-line almanac-record almanac-record-new">
                 <strong>New furthest</strong>
                 {" "}
-                <span>{"past " + reachedText(record.previous ?? record.day)}</span>
+                <span>{record.past}</span>
             </span>
         )
     }
     return (
         <span className="card-note almanac-line almanac-record">
-            <span>Furthest: <strong>{reachedText(record.day)}</strong></span>
+            <span>Furthest: <strong>{record.reached}</strong></span>
             {" "}
-            <span>{(record.life === null ? "" : "life " + toRoman(record.life) + ", ") + "age " + record.age}</span>
+            <span>{record.who}</span>
         </span>
     )
 }
 
 // An event running now: its name, "Began" for its first days, the days left,
 // its effects and what it is
-function EventBox({occurrence, today}: {occurrence: EventOccurrence, today: number}) {
-    const left = daysLeftInSeason(today)
+function EventBox({event}: {event: RunningEvent}) {
     return (
         <div className="almanac-event">
             <div className="almanac-event-head">
-                <strong>{occurrence.event.name}</strong>
-                {isNew(occurrence, today) && <>{" "}<span className="almanac-began">Began</span></>}
+                <strong>{event.name}</strong>
+                {event.began && <>{" "}<span className="almanac-began">Began</span></>}
                 {" "}
-                <span className="card-note almanac-event-left">{left + (left == 1 ? " day left" : " days left")}</span>
+                <span className="card-note almanac-event-left">{event.left}</span>
             </div>
             {" "}
             <span className="almanac-effects">
-                {occurrence.event.effects.map((effect, index) => (
-                    <span key={effect.label} style={{color: effectColor(effect, true)}}>{(index > 0 ? " " : "") + effectText(effect)}</span>
+                {event.effects.map((effect, index) => (
+                    <span key={effect.label} style={{color: effect.color}}>{(index > 0 ? " " : "") + effect.text}</span>
                 ))}
             </span>
             {" "}
-            <span className="card-note">{occurrence.event.description}</span>
+            <span className="card-note">{event.description}</span>
         </div>
     )
 }
