@@ -4,7 +4,7 @@
 // its snapshot is a frame number, which moves on every 100 ms of game time
 // and whenever the player does something.
 
-import { useSyncExternalStore } from "react"
+import { useRef, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
 import { gameData } from "../game/state.ts"
 import type { GameData } from "../game/state.ts"
@@ -52,6 +52,44 @@ export function onGameSteps(steps: number): boolean {
     stepsSinceRender %= stepsPerRender
     requestRender()
     return true
+}
+
+// One value a component shows, picked out of the game state by select. The
+// component renders again only when the value changes, not with every frame.
+// select runs on every frame, so keep it cheap, and never change the state in
+// it. It should return a primitive, usually the text on screen; an object or
+// array needs isEqual (shallowEqual or sameData below), or it would count as
+// changed every time.
+export function useGameValue<T>(select: () => T, isEqual: (a: T, b: T) => boolean = Object.is): T {
+    // The last value returned, so an equal value gives React the same snapshot
+    const last = useRef<{value: T} | null>(null)
+    const getValue = () => {
+        const next = select()
+        if (last.current && isEqual(last.current.value, next)) return last.current.value
+        last.current = {value: next}
+        return next
+    }
+    return useSyncExternalStore(subscribe, getValue)
+}
+
+// Two objects (or arrays) with the same keys and Object.is-equal values
+export function shallowEqual<T>(a: T, b: T): boolean {
+    if (Object.is(a, b)) return true
+    if (typeof a != "object" || typeof b != "object" || a === null || b === null) return false
+    const keysA = Object.keys(a) as (keyof T)[]
+    if (keysA.length != Object.keys(b).length) return false
+    return keysA.every(key => Object.prototype.hasOwnProperty.call(b, key) && Object.is(a[key], b[key]))
+}
+
+// Two plain values (primitives, arrays and plain objects of them) with the
+// same contents, however deep
+export function sameData<T>(a: T, b: T): boolean {
+    if (Object.is(a, b)) return true
+    if (typeof a != "object" || typeof b != "object" || a === null || b === null) return false
+    if (Array.isArray(a) != Array.isArray(b)) return false
+    const keysA = Object.keys(a) as (keyof T)[]
+    if (keysA.length != Object.keys(b).length) return false
+    return keysA.every(key => Object.prototype.hasOwnProperty.call(b, key) && sameData(a[key], b[key]))
 }
 
 // The game state, for a component that shows it. The component renders
