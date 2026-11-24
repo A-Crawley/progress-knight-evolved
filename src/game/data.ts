@@ -168,6 +168,10 @@ const itemList = [
         tooltip: "Structured with a timber frame and a thatched roof. Provides decent living conditions for a fair price."},
     {id: "house", name: "House", category: "Properties", expense: 3000, effect: 6, requires: [{coins: 300000}],
         tooltip: "A building formed from stone bricks and sturdy timber, which contains a few rooms. Although quite expensive, it is a comfortable abode."},
+    // Age of Guilds
+    {id: "guildhall_residence", name: "Guildhall residence", category: "Properties", expense: 10000, effect: 9, requires: [{coins: 1000000}],
+        availableFrom: 1300,
+        tooltip: "Rooms above the guildhall, given to members in good standing. Warm, well kept and full of useful company."},
     {id: "large_house", name: "Large house", category: "Properties", expense: 25000, effect: 12, requires: [{coins: 2500000}],
         tooltip: "Much larger than a regular house, which boasts even more rooms and multiple floors. The building is quite spacious but comes with a hefty price tag."},
     {id: "small_palace", name: "Small palace", category: "Properties", expense: 300000, effect: 25, requires: [{coins: 30000000}],
@@ -177,15 +181,28 @@ const itemList = [
 
     // Misc
     {id: "book", name: "Book", category: "Misc", expense: 10, effect: 1.5, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{coins: 0}],
+        closesIn: 1300, successor: "printed_tome",
         tooltip: "A place to write down all your thoughts and discoveries, allowing you to learn a lot more quickly."},
+    // Age of Guilds
+    {id: "printed_tome", name: "Printed tome", category: "Misc", expense: 25, effect: 2, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{coins: 2500}],
+        availableFrom: 1300,
+        tooltip: "A book set in type rather than copied by hand. Cheaper, clearer and far more of them than any scribe could make."},
     {id: "dumbbells", name: "Dumbbells", category: "Misc", expense: 50, effect: 1.5, description: "Strength xp", boosts: [{stat: "xp", of: "strength"}], requires: [{coins: 5000}],
         tooltip: "Heavy tools used in strenuous exercise to toughen up and accumulate strength even faster than before. "},
     {id: "personal_squire", name: "Personal squire", category: "Misc", expense: 200, effect: 2, description: "Job xp", boosts: [{stat: "xp", of: "jobs"}], requires: [{coins: 20000}],
         tooltip: "Assists you in completing day to day activities, giving you more time to be productive at work."},
+    // Age of Guilds
+    {id: "ledger", name: "Ledger", category: "Misc", expense: 300, effect: 2, description: "Common work xp", boosts: [{stat: "xp", of: "Common work"}], requires: [{coins: 30000}],
+        availableFrom: 1300,
+        tooltip: "A bound book of accounts in the guild style. Knowing where every coin went makes every trade quicker to learn."},
     {id: "steel_longsword", name: "Steel longsword", category: "Misc", expense: 1000, effect: 2, description: "Military xp", boosts: [{stat: "xp", of: "Military"}], requires: [{coins: 100000}],
         tooltip: "A fine blade used to slay enemies even quicker in combat and therefore gain more experience."},
     {id: "butler", name: "Butler", category: "Misc", expense: 7500, effect: 1.5, description: "Happiness", boosts: [{stat: "happiness"}], requires: [{coins: 750000}],
         tooltip: "Keeps your household clean at all times and also prepares three delicious meals per day, leaving you in a happier, stress-free mood."},
+    // Age of Guilds
+    {id: "guild_seal", name: "Guild seal", category: "Misc", expense: 20000, effect: 1.5, description: "Job pay", boosts: [{stat: "income", of: "jobs"}], requires: [{coins: 2000000}],
+        availableFrom: 1300,
+        tooltip: "The guild's mark on your work. Patrons pay more for what they know the guild will stand behind."},
     {id: "sapphire_charm", name: "Sapphire charm", category: "Misc", expense: 50000, effect: 3, description: "Magic xp", boosts: [{stat: "xp", of: "Magic"}], requires: [{coins: 5000000}],
         tooltip: "Embedded with a rare sapphire, this charm activates more mana channels within your body, providing a much easier time learning magic."},
     {id: "study_desk", name: "Study desk", category: "Misc", expense: 1000000, effect: 2, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{coins: 100000000}],

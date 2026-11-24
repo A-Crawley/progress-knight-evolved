@@ -419,3 +419,29 @@ test("Letters stays out of sight until a life reaches 1300, opens then, and show
     assert.equal(api.isUnlocked("letters"), false, "but locked again until 1300")
     assert.equal(gameData.requirements["Literacy"].isCompleted(), false)
 })
+
+test("in 1300 Book closes and passes to Printed tome; the Guild items and residence open then", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    gameData.coins = 3000000
+    game.fastTicks(1)
+    api.setMisc("Book")
+    for (const name of ["Printed tome", "Ledger", "Guild seal"]) api.setMisc(name)
+    api.setProperty("Guildhall residence")
+    assert.deepEqual(gameData.currentMisc.map(item => item.name), ["Book"], "nothing of the Guilds before 1300")
+    assert.equal(gameData.currentProperty.name, "Homeless")
+
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    assert.deepEqual(gameData.currentMisc.map(item => item.name), [], "Book switched off")
+    for (const name of ["Printed tome", "Ledger", "Guild seal"]) api.setMisc(name)
+    api.setProperty("Guildhall residence")
+    assert.deepEqual(gameData.currentMisc.map(item => item.name), ["Printed tome", "Ledger", "Guild seal"])
+    assert.equal(gameData.currentProperty.name, "Guildhall residence")
+    // Each item shows up once its 100x reveal is held
+    for (const name of ["Printed tome", "Ledger", "Guild seal", "Guildhall residence"]) {
+        const item = gameData.itemData[name]
+        assert.equal(item.baseData.requires[0].coins, item.baseData.expense * 100, name)
+    }
+})
