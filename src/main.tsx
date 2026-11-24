@@ -55,3 +55,7 @@ setBackgroundInterval(() => {
 
 setBackgroundInterval(saveGameData, 3000)
 setBackgroundInterval(setSkillWithLowestMaxXp, 1000)
+
+// `npm run dev:record` records the playthrough (see src/dev/). In any other
+// mode this is always false, so the build leaves the recorder out.
+if (import.meta.env.MODE == "record") void import("./dev/startRecording.ts")

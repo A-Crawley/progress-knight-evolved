@@ -84,6 +84,8 @@ export interface RecorderOptions {
 export interface RecorderStatus {
     recording: boolean
     startedAt: number
+    // Real time since the session started
+    elapsedMs: number
     events: number
     exportDue: boolean
 }
@@ -225,6 +227,7 @@ export class Recorder {
         return {
             recording: this.recording,
             startedAt: this.startedAt,
+            elapsedMs: this.now() - this.startedAt,
             events: this.events,
             exportDue: this.now() - (this.meta.lastExportAt ?? this.startedAt) >= EXPORT_REMINDER_MS,
         }
