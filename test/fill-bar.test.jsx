@@ -18,9 +18,9 @@ let share = 0
 // The animation frames' clock (ms)
 let now = 0
 
-function Bar({restart}) {
+function Bar({restart, glide}) {
     const fill = useRef(null)
-    useFillBar(fill, () => share, restart)
+    useFillBar(fill, () => share, restart, glide)
     return <div ref={fill} className="fill" />
 }
 
@@ -136,6 +136,19 @@ test("a bar starts afresh at its share when it restarts", () => {
     share = 0.8
     rerender(<Bar restart="Miner" />)
     assert.equal(shown(container), 0.8, "no slide from Farmer's share")
+})
+
+test("a bar that glides eases from its old task's share to the new one's", () => {
+    share = 0.9
+    const { container, rerender } = render(<Bar restart="Strength" glide />)
+    idle(container, 6)
+    share = 0.2
+    rerender(<Bar restart="Productivity" glide />)
+    assert.equal(shown(container), 0.9, "starts where Strength's bar was")
+    const painted = idle(container, 30)
+    assert.ok(painted.every((value, i) => value <= (painted[i - 1] ?? 0.9)), "then heads straight down")
+    assert.ok(painted[3] < 0.9 && painted[3] > 0.2, "over a few frames, not at once")
+    assert.ok(Math.abs(painted.at(-1) - 0.2) < 1e-9, "and settles on its new share")
 })
 
 test("an unmounted bar is no longer painted", () => {

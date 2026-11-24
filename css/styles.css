@@ -969,6 +969,40 @@ th {
     opacity: 0.72;
 }
 
+/* Under auto-learn the skill changes every second or two, so its row has no
+   fill that would keep springing back. Instead the bar is faintly tinted and
+   a soft band of the bar colour sweeps along it, to show it's busy (with
+   effects off, just the tint). */
+.auto-learning .quick-fill {
+    display: none;
+}
+
+.auto-learning .quick-bar {
+    background-color: color-mix(in srgb, var(--pk-bar-current) 22%, var(--pk-bar-track));
+}
+
+.auto-learning .quick-bar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pk-bar-current) 55%, transparent), transparent);
+    transform: translateX(-100%);
+    opacity: 0;
+}
+
+@keyframes auto-learn-sweep {
+    0% { transform: translateX(-100%); opacity: 1; }
+    70%, 100% { transform: translateX(225%); opacity: 1; }
+}
+
+@keyframes quick-text-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: none; }
+}
+
 .stat {
     display: flex;
     flex-direction: column;
@@ -2104,6 +2138,9 @@ table.w3-bordered tr.next-tr {
     .amulet-turn { animation: amulet-turn 40s linear infinite; }
     .amulet-sneer { animation: amulet-sneer 6s ease-in-out infinite; }
     .evil-glow { animation: evil-glow 3.6s ease-in-out infinite; }
+    /* A new current job or skill fades in (see QuickTask in Sidebar.tsx) */
+    .quick-text { animation: quick-text-in 0.25s ease-out; }
+    .auto-learning .quick-bar::before { animation: auto-learn-sweep 2.4s ease-in-out infinite; }
     .amulet-glare { animation: amulet-glare 6s ease-in-out infinite; }
 }
 

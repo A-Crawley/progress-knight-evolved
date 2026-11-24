@@ -152,6 +152,20 @@ test("each of them says when it reaches its next level", async () => {
     assert.equal(notes()[0], "Job · next level in 1 day")
 })
 
+test("under auto-learn the skill row has no fill, and its line says auto-learn", async () => {
+    const game = await renderComponent("Sidebar.tsx", "Sidebar")
+    game.gameData.days = 365 * 20
+    game.engine.setAutoLearn(true)
+    game.ticks(1)
+    const rows = [...byId("quickTaskDisplay").querySelectorAll(".quick-task")]
+    assert.deepEqual(rows.map(row => row.classList.contains("auto-learning")), [false, true], "only the skill row drops its fill")
+    const notes = [...byId("quickTaskDisplay").querySelectorAll(".card-note")].map(element => element.textContent)
+    assert.deepEqual(notes, ["Job · next level in 5 days", "Skill · auto-learn"])
+    game.engine.setAutoLearn(false)
+    game.ticks(0)
+    assert.ok(!rows[1].classList.contains("auto-learning"), "the fill comes back without auto-learn")
+})
+
 test("the purse says what an event running does to upkeep", async () => {
     const game = await renderComponent("Sidebar.tsx", "Sidebar")
     game.gameData.requirements["Shop"].completed = true
