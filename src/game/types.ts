@@ -118,6 +118,11 @@ export interface EventDefinition {
     readonly effects: readonly EventEffect[]
     // An unlock's id: until it is reached the event has no effect and isn't shown
     readonly requires?: string
+    // World years it belongs to (an era's event): it only comes round from
+    // the year from and before the year until. It isn't shown before any
+    // life has reached from.
+    readonly from?: number
+    readonly until?: number
     readonly description: string
 }
 

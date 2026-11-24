@@ -312,3 +312,36 @@ test("the last job closing is remembered for this life, with where you moved to"
     api.rebirthOne()
     assert.equal(gameData.lastClosing, null)
 })
+
+// ---------------------------------------------------------------------------
+// An era's events
+
+const fair = api => api.events.find(event => event.id == "test_fair")
+
+test("an era's event only comes round from its first year and before its last", async () => {
+    const { api } = await loadEngine({data: withTestEra})
+    assert.deepEqual([1228, 1229, 1230, 1231, 1232, 1238, 1240, 1242].map(year => api.happensIn(fair(api), year)),
+        [false, false, true, false, true, true, false, false])
+})
+
+test("an era's event stays out of sight until some life has reached its first year", async () => {
+    const { api, gameData } = await loadEngine({data: withTestEra})
+    assert.equal(api.isEventUnlocked(fair(api)), false)
+    assert.ok(!api.getUpcomingEvents(0, 20).some(found => found.event.id == "test_fair"))
+
+    gameData.furthestDay = startOf(1230)
+    assert.equal(api.isEventUnlocked(fair(api)), true)
+    assert.equal(api.getUpcomingEvents(0, 40).filter(found => found.event.id == "test_fair")[0].year, 1230)
+})
+
+test("an era's event works while it runs: the Test fair doubles Common work pay in Summer 1230", async () => {
+    const game = await loadEngine({data: withTestEra})
+    const { gameData } = game
+    const beggar = gameData.taskData["Beggar"]
+    goToYear(gameData, 1229)
+    game.fastTicks(1)
+    const before = beggar.getIncome()
+    goToYear(gameData, 1230)
+    game.fastTicks(1)
+    assert.equal(beggar.getIncome(), before * 2)
+})

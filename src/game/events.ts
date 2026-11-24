@@ -6,6 +6,7 @@
 import { calendar, events, eventNewDays, namesById } from "./data.ts"
 import { gameData } from "./state.ts"
 import { getWorldDay, seasonOf, seasonStart, DAYS_PER_YEAR } from "./calendar.ts"
+import { isYearReached } from "./eras.ts"
 import type { EventDefinition, EventEffect } from "./types.ts"
 
 // One season an event runs for: start is its first day, end the day after
@@ -22,6 +23,8 @@ function seasonIndexOf(event: EventDefinition): number {
 
 // Whether the event comes round in this year (years before the epoch too)
 export function happensIn(event: EventDefinition, year: number): boolean {
+    if (event.from !== undefined && year < event.from) return false
+    if (event.until !== undefined && year >= event.until) return false
     const yearsSince = year - calendar.epochYear - event.offset
     return ((yearsSince % event.everyYears) + event.everyYears) % event.everyYears == 0
 }
@@ -31,8 +34,10 @@ export function isRare(event: EventDefinition): boolean {
     return event.everyYears >= 7
 }
 
-// Whether the player has reached the event's unlock, so it counts and shows
+// Whether the player has reached the event's unlock, so it counts and shows.
+// An era's event also waits until some life has reached its first year.
 export function isEventUnlocked(event: EventDefinition): boolean {
+    if (event.from !== undefined && !isYearReached(event.from)) return false
     if (!event.requires) return true
     return gameData.requirements[namesById[event.requires]].completed
 }

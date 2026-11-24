@@ -28,11 +28,18 @@ export const testGuildmaster = {id: "test_guildmaster", name: "Test guildmaster"
 export const testAgeGlimpse = {id: "test_age_glimpse", name: "Test age glimpse", reveals: ["Test guild"], permanent: true,
     requires: [{year: TEST_ERA_YEAR}]}
 
+// An event of the Test age: every other Summer from 1230, until 1240
+export const testFair = {id: "test_fair", name: "Test fair", plural: "Test fairs", season: "summer", everyYears: 2, offset: 0,
+    from: TEST_ERA_YEAR, until: TEST_ERA_YEAR + 10,
+    effects: [{label: "Common work pay", effect: 2, boosts: [{stat: "income", of: "Common work"}]}],
+    description: "Only in tests."}
+
 export function withTestEra(real) {
     return {
         eras: [...real.eras, testEra],
         jobs: [...real.jobs, testTrader, testGuildTrader, testGuildmaster],
         items: [...real.items, testScroll, testLedger],
         unlocks: [...real.unlocks, testAgeGlimpse],
+        events: [...real.events, testFair],
     }
 }
