@@ -202,3 +202,60 @@ test("the banner leaves out what this life never unlocked", async () => {
     game.rerender()
     assert.deepEqual([...banner().querySelectorAll(".era-handoff")].map(squash), ["Test scroll Test ledger"])
 })
+
+// ---------------------------------------------------------------------------
+// The Chronicle
+
+// A game where life I reached Summer 1240, in the Test age, and this life
+// (II) is in 1215
+async function chronicleGame() {
+    const game = await renderComponent("Chronicle.tsx", "Chronicle", {}, {
+        data: withTestEra,
+        before(engine, gameData) {
+            gameData.days = ageFor(1240)
+            engine.rebirthOne()
+            gameData.days = ageFor(1215)
+        },
+    })
+    game.ticks(1)
+    return game
+}
+
+const bands = () => [...document.querySelectorAll(".chronicle-era")]
+
+test("the reach chart lays a band for each era behind the bars, labelled along the top", async () => {
+    await chronicleGame()
+    assert.deepEqual(bands().map(squash), ["Age of Fiefs 1200", "Test age 1230"])
+    assert.ok(!bands()[0].classList.contains("chronicle-era-later"))
+    assert.ok(bands()[1].classList.contains("chronicle-era-later"))
+    assert.ok(document.querySelector(".chronicle-reach").classList.contains("chronicle-reach-eras"))
+    assert.match(document.querySelector(".chronicle-reach").getAttribute("aria-label"), /Eras: Age of Fiefs from 1200, Test age from 1230\.$/)
+})
+
+test("the part of a life's bar in a later era takes the era colour, and the list names the eras each life reached", async () => {
+    await chronicleGame()
+    const rows = [...document.querySelectorAll(".chronicle-reach-row")]
+    // Newest first: this life hasn't reached 1230, life I has
+    assert.equal(rows[0].querySelector(".chronicle-bar-era"), null)
+    const part = rows[1].querySelector(".chronicle-bar-era")
+    assert.ok(part)
+    assert.ok(parseFloat(part.style.left) > 0 && parseFloat(part.style.width) > 0)
+
+    const lives = [...document.querySelectorAll(".chronicle-life")]
+    assert.deepEqual(lives.map(life => [...life.querySelectorAll(".chronicle-era-chip")].map(squash)),
+        [["Age of Fiefs"], ["Age of Fiefs", "Test age"]])
+    assert.ok([...document.querySelectorAll(".chronicle-legend > span")].map(squash).includes("Life, Test age"))
+})
+
+test("with only the first era reached and nothing glimpsed, the Chronicle names no eras in its list", async () => {
+    const game = await renderComponent("Chronicle.tsx", "Chronicle", {}, {
+        data: withTestEra,
+        before(engine, gameData) {
+            gameData.days = ageFor(1205)
+            engine.rebirthOne()
+        },
+    })
+    game.ticks(1)
+    assert.deepEqual(bands().map(squash), ["Age of Fiefs 1200"])
+    assert.equal(document.querySelector(".chronicle-era-chip"), null)
+})

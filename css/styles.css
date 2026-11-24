@@ -3263,3 +3263,101 @@ button.item-button .closes-hint {
         height: var(--pk-touch);
     }
 }
+
+/* Eras in the Chronicle: a faint band for each era behind the reach chart,
+   labelled along the top (the record's label moves down a line), a later
+   era's band and its part of each bar in the era colour, and chips naming
+   the eras a listed life reached */
+.chronicle-reach-eras {
+    padding-top: 46px;
+}
+
+.chronicle-reach-eras::before {
+    top: 40px;
+}
+
+.chronicle-reach-eras .chronicle-furthest {
+    top: 40px;
+}
+
+.chronicle-reach-eras .chronicle-furthest-label {
+    top: 20px;
+}
+
+.chronicle-eras {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--numeral-width) + var(--numeral-gap));
+    right: 0;
+    pointer-events: none;
+}
+
+.chronicle-era {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+
+.chronicle-era-later {
+    border-left: 1px solid color-mix(in srgb, var(--pk-era) 50%, transparent);
+}
+
+.chronicle-era-later::before {
+    content: "";
+    position: absolute;
+    top: 40px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--pk-era-wash);
+}
+
+.chronicle-era-label {
+    position: absolute;
+    top: 0;
+    left: var(--pk-space-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--pk-text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--pk-text-secondary);
+}
+
+.chronicle-era-later .chronicle-era-label,
+.chronicle-era-chip.chronicle-era-later {
+    color: var(--pk-era);
+}
+
+.chronicle-era-year {
+    font-weight: 500;
+    color: var(--pk-text-muted);
+}
+
+.chronicle-bar-track .chronicle-bar-era {
+    border-radius: 0 2px 2px 0;
+}
+
+.chronicle-bar-era {
+    background-color: var(--pk-era-bar);
+}
+
+.chronicle-era-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pk-space-1) var(--pk-space-2);
+}
+
+.chronicle-era-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pk-space-1);
+    padding: 1px var(--pk-space-2);
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-panel);
+    font-size: var(--pk-text-xs);
+    font-weight: 500;
+    color: var(--pk-text-secondary);
+}
