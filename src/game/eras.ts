@@ -3,7 +3,7 @@
 // is stored; it all follows from the date and the furthest date any life
 // has reached (gameData.furthestDay).
 
-import { eras, jobs, skills, items } from "./data.ts"
+import { eras, jobs, skills, items, namesById } from "./data.ts"
 import { gameData } from "./state.ts"
 import { getWorldDay, getWorldYear, seasonStart, toDate, DAYS_PER_YEAR } from "./calendar.ts"
 import type { EraDefinition, JobDefinition, ItemDefinition } from "./types.ts"
@@ -86,6 +86,35 @@ export function isNotYetOpen(definition: JobDefinition | ItemDefinition): boolea
 // requirement still applies on top.
 export function isOpen(definition: JobDefinition | ItemDefinition): boolean {
     return !isClosed(definition) && !isNotYetOpen(definition)
+}
+
+// Whether any life, this one included, has reached the start of a year
+export function isYearReached(year: number): boolean {
+    return getRecordDay() >= seasonStart(year, 0)
+}
+
+// How a job's or item's row shows its era, given whether it's unlocked:
+// open (warning that it closes, once any life has seen that year), closed
+// (with its successor, if this life unlocked it), opening later (as a locked
+// row, once any life has reached that year), or out of sight
+export type EraRow =
+    | {kind: "open", closesIn: number | null}
+    | {kind: "closed", year: number, successor: string | null}
+    | {kind: "opens", year: number, era: string}
+    | {kind: "unseen"}
+
+export function getEraRow(definition: JobDefinition | ItemDefinition, unlocked: boolean): EraRow {
+    if (isClosed(definition)) {
+        if (!unlocked) return {kind: "unseen"}
+        return {kind: "closed", year: definition.closesIn as number, successor: namesById[definition.successor as string] ?? null}
+    }
+    if (isNotYetOpen(definition)) {
+        const year = definition.availableFrom as number
+        if (!isYearReached(year)) return {kind: "unseen"}
+        return {kind: "opens", year, era: getEra(year)?.name ?? ""}
+    }
+    const closesIn = definition.closesIn
+    return {kind: "open", closesIn: closesIn !== undefined && isYearReached(closesIn) ? closesIn : null}
 }
 
 // Checks the era fields of every job and item, so a mistake in the data

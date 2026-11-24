@@ -58,3 +58,112 @@ test("a later era shows in the era colour, with Began for its first 30 days", as
     game.ticks(1)
     assert.equal(squash(card().querySelector(".almanac-era")), "Test age")
 })
+
+// ---------------------------------------------------------------------------
+// Jobs, Shop and Working on
+
+const startOf = year => (year - 1200) * YEAR
+
+// A game on the test data, working as a Test trader (level 32 unless given)
+// with the Test scroll in use, on a day of a year. record: the furthest
+// world day any life has reached before this one; a record past 1230 means
+// an earlier life reached the Test age, so its glimpse unlock is reached.
+async function eraGame(file, component, props, {year, day = 0, record = 0, traderLevel = 32}) {
+    const game = await renderComponent(file, component, props, {
+        data: withTestEra,
+        before(engine, gameData) {
+            gameData.furthestDay = record
+            if (record >= startOf(1230)) gameData.requirements["Test age glimpse"].completed = true
+            // Enough to have seen the Misc items
+            gameData.coins = 5000
+            gameData.taskData["Beggar"].level = 10
+            gameData.taskData["Farmer"].level = 3
+            gameData.taskData["Test trader"].level = traderLevel
+            engine.update()
+            engine.setTask("Test trader")
+            engine.setMisc("Test scroll")
+        },
+    })
+    game.gameData.days = ageFor(year, day)
+    game.ticks(1)
+    return game
+}
+
+const bar = name => row(name).querySelector(".era-bar, button")
+
+test("before any life reaches an era, nothing about it shows in the Jobs table", async () => {
+    await eraGame("TaskTable.tsx", "TaskTable", { kind: "jobs" }, { year: 1225 })
+    assert.equal(row("Test trader").querySelector(".closes-hint"), null)
+    assert.ok(row("Test guild trader").classList.contains("hidden"))
+    assert.ok(document.querySelector(".headerRow.Testguild").classList.contains("hidden"), "the Test guild stays out of sight")
+})
+
+test("once a life has reached an era, later lives see what closes and what opens then", async () => {
+    await eraGame("TaskTable.tsx", "TaskTable", { kind: "jobs" }, { year: 1225, record: startOf(1231) })
+    assert.equal(squash(row("Test trader").querySelector(".closes-hint")), "Closes in 1230")
+
+    const opens = row("Test guild trader")
+    assert.ok(!opens.classList.contains("hidden"))
+    assert.equal(squash(bar("Test guild trader")), "Test guild trader Opens in 1230")
+    assert.equal(opens.querySelector("button"), null, "it can't be started")
+    assert.equal(squash(opens.querySelector(".level")), "")
+
+    // The Test guild is revealed, its header saying when it opens
+    const header = document.querySelector(".headerRow.Testguild")
+    assert.ok(!header.classList.contains("hidden"))
+    assert.equal(squash(header.querySelector(".era-hint")), "Test age · opens 1230")
+    assert.equal(squash(bar("Test guildmaster")), "Test guildmaster Opens in 1230")
+})
+
+test("a closed job is muted with its successor, keeps its level, and the successor's tooltip names the bonus", async () => {
+    await eraGame("TaskTable.tsx", "TaskTable", { kind: "jobs" }, { year: 1230 })
+    const closed = row("Test trader")
+    assert.equal(squash(closed.querySelector(".era-closed")), "Test trader Closed in 1230 · became Test guild trader →")
+    assert.equal(closed.querySelector(".era-closed a").getAttribute("href"), "#row%20Test%20guild%20trader")
+    assert.equal(closed.querySelector("button"), null)
+    assert.equal(squash(closed.querySelector(".level")), "32")
+    assert.equal(squash(closed.querySelector(".xpGain")), "—")
+
+    const successor = row("Test guild trader")
+    assert.equal(squash(successor.querySelector(".active-badge")), "Active")
+    assert.equal(squash(successor.querySelector(".tooltip-source")), "×4.2 XP from Test trader")
+    assert.equal(row("Farmer").querySelector(".tooltip-source"), null)
+})
+
+test("the Next row passes over jobs an era has closed or not yet opened", async () => {
+    await eraGame("TaskTable.tsx", "TaskTable", { kind: "jobs" }, { year: 1225, record: startOf(1231), traderLevel: 2 })
+    // Merchant is next in Common work; the Test jobs after it aren't named
+    assert.match(squash(document.getElementById("Common work")), /Next: Fisherman/)
+})
+
+test("Working on says an era closed your job, and where you went, for 30 days", async () => {
+    const game = await eraGame("Sidebar.tsx", "Sidebar", {}, { year: 1229, day: 364, traderLevel: 2 })
+    assert.equal(document.querySelector(".closing-note"), null)
+    game.ticks(10)
+    assert.equal(squash(document.querySelector(".closing-note")), "Test trader closed in 1230 · now Farmer")
+    assert.equal(squash(document.querySelector(".quick-bar.job .name")), "Farmer")
+
+    game.gameData.days += 30
+    game.ticks(1)
+    assert.equal(document.querySelector(".closing-note"), null)
+})
+
+test("in the Shop, an item about to close says so, and its successor shows locked", async () => {
+    await eraGame("ShopTable.tsx", "ShopTable", {}, { year: 1225, record: startOf(1231) })
+    assert.equal(squash(row("Test scroll").querySelector(".closes-hint")), "Closes in 1230")
+    assert.equal(squash(bar("Test ledger")), "Test ledger Opens in 1230")
+    assert.equal(squash(row("Test ledger").querySelector(".expense")), "—")
+})
+
+test("in the Shop, a closed item is muted with its successor, which can be bought", async () => {
+    await eraGame("ShopTable.tsx", "ShopTable", {}, { year: 1230 })
+    const closed = row("Test scroll")
+    assert.equal(squash(closed.querySelector(".era-closed")), "Test scroll Closed in 1230 · became Test ledger →")
+    assert.equal(squash(closed.querySelector(".in-use")), "—")
+    assert.equal(squash(closed.querySelector(".expense")), "—")
+    assert.ok(closed.querySelector(".effect").classList.contains("era-muted"))
+
+    const ledger = row("Test ledger")
+    assert.ok(!ledger.classList.contains("hidden"))
+    assert.ok(ledger.querySelector("button.item-button"))
+})

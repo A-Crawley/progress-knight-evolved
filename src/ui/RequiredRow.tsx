@@ -8,6 +8,7 @@ import type { Job, Skill, Item, Requirement, TaskCondition } from "../game/class
 import { daysToYears } from "../game/rules.ts"
 import { getWorldYear } from "../game/calendar.ts"
 import { isUnlocked } from "../game/engine.ts"
+import { isOpen } from "../game/eras.ts"
 import { FormattedCoins } from "./CoinParts.tsx"
 import { sameData, useGameValue } from "./gameStore.ts"
 import { classNames, removeSpaces } from "./classNames.ts"
@@ -16,8 +17,12 @@ import type { CoinPart } from "./format.ts"
 
 type Entity = Job | Skill | Item
 
-// The next thing in the category that hasn't been unlocked, if any
-function nextLocked(data: Record<string, Entity>, category: string[]): Entity | null {
+// The next thing in the category that hasn't been unlocked, if any. Jobs
+// and items closed by an era, or whose era hasn't come, are passed over:
+// their rows say so themselves.
+function nextLocked(data: Record<string, Entity>, allOfCategory: string[]): Entity | null {
+    const category = allOfCategory.filter(name => !("closesIn" in data[name].baseData || "availableFrom" in data[name].baseData)
+        || isOpen(data[name].baseData as Job["baseData"] | Item["baseData"]))
     for (let i = 0; i < category.length; i++) {
         const entityName = category[i]
         if (i >= category.length - 1) break

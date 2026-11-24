@@ -12,6 +12,10 @@ import { RequiredRow, isCategoryHidden, isCategoryUnseen } from "./RequiredRow.t
 import { classNames, removeSpaces } from "./classNames.ts"
 import { formatCoins, splitEffect } from "./format.ts"
 import { useLongPressTooltip } from "./useLongPressTooltip.ts"
+import { getEraRow } from "../game/eras.ts"
+import type { EraRow } from "../game/eras.ts"
+import { getCategoryEraHint } from "./eraText.ts"
+import { ClosedBar, OpensBar } from "./TaskTable.tsx"
 
 const categoryHints: Record<string, string> = {
     "Properties": "one at a time",
@@ -24,6 +28,7 @@ export function ShopTable() {
     // Shown and hidden as the categories are revealed
     const unseen = useGameValue(() => Object.keys(itemCategories).map(isCategoryUnseen), shallowEqual)
     const locked = useGameValue(() => Object.keys(itemCategories).map(isCategoryHidden), shallowEqual)
+    const eraHints = useGameValue(() => Object.values(itemCategories).map(names => getCategoryEraHint(names, gameData.itemData)), shallowEqual)
     return (
         <>
             <div className="table-scroll">
@@ -36,6 +41,7 @@ export function ShopTable() {
                                     <th className="category">
                                         {categoryName}
                                         <span className="category-hint">{categoryHints[categoryName]}</span>
+                                        {eraHints[index] && <span className="category-hint era-hint">{eraHints[index]}</span>}
                                     </th>
                                     <th className="col-active">In use</th>
                                     <th className="col-effect">Effect</th>
@@ -71,8 +77,13 @@ function getRow(name: string, categoryName: string) {
     const expense = item.getExpense()
     // "x2.0 Happiness" -> "×2" and "happiness"
     const effect = splitEffect(item.getEffectDescription())
+    const unlocked = gameData.requirements[name].completed
+    const era: EraRow = getEraRow(item.baseData, unlocked)
     return {
-        hidden: !gameData.requirements[name].completed || isCategoryUnseen(categoryName),
+        era,
+        // A row opening in a later era shows locked once any life has reached
+        // it; a closed one shows if this life unlocked it
+        hidden: isCategoryUnseen(categoryName) || era.kind == "unseen" || (era.kind == "open" && !unlocked),
         active: gameData.currentMisc.includes(item) || item == gameData.currentProperty,
         affordable: gameData.coins >= expense,
         multiplier: effect.multiplier.replace(/\.0$/, ""),
@@ -82,28 +93,32 @@ function getRow(name: string, categoryName: string) {
 }
 
 const ItemRow = memo(function ItemRow({name, isProperty, categoryName}: {name: string, isProperty: boolean, categoryName: string}) {
-    const {hidden, active: isActive, affordable, multiplier, what, expense} = useGameValue(() => getRow(name, categoryName), sameData)
+    const {era, hidden, active: isActive, affordable, multiplier, what, expense} = useGameValue(() => getRow(name, categoryName), sameData)
     const tooltipId = "tip-" + removeSpaces(name)
     const longPress = useLongPressTooltip()
     return (
         <tr id={"row " + name} className={classNames(hidden && "hidden")}
             style={{"--cat": headerRowColors[categoryName as keyof typeof headerRowColors]} as CSSProperties}>
             <td>
+                {era.kind == "closed" && <ClosedBar name={name} era={era} />}
+                {era.kind == "opens" && <OpensBar name={name} year={era.year} />}
+                {era.kind == "open" &&
                 <button type="button" className={classNames("item-button tooltip", longPress.shown && "tooltip-open")} disabled={!affordable} aria-pressed={isActive} aria-describedby={tooltipId} {...longPress.handlers}
                     onClick={() => {isProperty ? setProperty(name) : setMisc(name); requestRender()}}>
                     <span className="name">{name}</span>
                     {/* Phones show the tick inside the button (hidden from 640px) */}
+                    {era.kind == "open" && era.closesIn !== null && <span className="closes-hint">{"Closes in " + era.closesIn}</span>}
                     {isActive && <CheckIcon className="item-tick" />}
                     <span className="tooltipText" id={tooltipId} aria-hidden="true">{tooltips[name]}</span>
-                </button>
+                </button>}
             </td>
             <td className="in-use">
                 {isActive
                     ? <CheckIcon className="active" label="In use" />
                     : <span className="not-in-use" role="img" aria-label="Not in use">—</span>}
             </td>
-            <td className="effect"><strong>{multiplier}</strong> <span>{what}</span></td>
-            <td className={classNames("expense", !expense && "free")}>{expense ? <FormattedCoins parts={expense} /> : "Free"}</td>
+            <td className={classNames("effect", era.kind != "open" && "era-muted")}><strong>{multiplier}</strong> <span>{what}</span></td>
+            <td className={classNames("expense", !expense && "free")}>{era.kind != "open" ? "—" : expense ? <FormattedCoins parts={expense} /> : "Free"}</td>
         </tr>
     )
 })

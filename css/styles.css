@@ -2997,3 +2997,122 @@ body.effects-off .fx-anim::after {
 .purse-event b {
     font-weight: 600;
 }
+
+/* Eras in the Jobs and Shop tables. A row closed by an era is muted, with a
+   dashed outline and a link to what took its place; a row of a later era
+   that some life has reached is locked, saying when it opens. Both stand
+   where the row's bar or button would be. */
+.era-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--pk-space-2);
+    box-sizing: border-box;
+    height: var(--pk-bar-height);
+    padding: 0 var(--pk-space-3);
+    border-radius: var(--pk-radius);
+    color: var(--pk-text-muted);
+}
+
+.era-bar .name {
+    font-weight: 500;
+}
+
+.era-closed {
+    justify-content: space-between;
+    border: 1px dashed var(--pk-line);
+}
+
+.era-closed-note,
+.era-opens-note {
+    font-size: var(--pk-text-xs);
+    white-space: nowrap;
+}
+
+.era-opens-note {
+    margin-left: auto;
+}
+
+.era-closed-note a {
+    color: var(--pk-era);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.era-closed-note a:hover {
+    text-decoration: underline;
+}
+
+.era-opens {
+    background-color: var(--pk-era-wash);
+}
+
+.era-opens .name {
+    color: var(--pk-text-secondary);
+}
+
+.era-icon {
+    flex-shrink: 0;
+}
+
+.era-opens .era-icon,
+.era-hint {
+    color: var(--pk-era);
+}
+
+.era-muted {
+    color: var(--pk-text-muted);
+}
+
+/* "Closes in 1300", at the end of a bar or item button */
+.closes-hint {
+    font-size: var(--pk-text-xs);
+    font-weight: 500;
+    color: var(--pk-bar-text);
+    opacity: 0.72;
+}
+
+button.item-button .closes-hint {
+    margin-left: var(--pk-space-2);
+    color: var(--pk-text-muted);
+    opacity: 1;
+}
+
+/* The bonus a successor inherits, on its own line under the description */
+.tooltip-source {
+    display: block;
+    margin-top: var(--pk-space-2);
+    font-weight: 600;
+}
+
+/* Working on: the line saying an era closed your job */
+.closing-note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--pk-space-2);
+    margin: 0;
+    color: var(--pk-text-secondary);
+}
+
+.closing-note .era-icon {
+    margin-top: 2px;
+    color: var(--pk-era);
+}
+
+.closing-note strong {
+    font-weight: 600;
+    color: var(--pk-text);
+}
+
+@media (max-width: 639px) {
+    .era-bar {
+        height: var(--pk-touch);
+    }
+
+    .era-closed {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--pk-touch);
+        padding-top: var(--pk-space-1);
+        padding-bottom: var(--pk-space-1);
+    }
+}

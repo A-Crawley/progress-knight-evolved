@@ -17,6 +17,9 @@ import { format, formatCoins } from "./format.ts"
 import { useFillBar } from "./fillBar.ts"
 import { Almanac } from "./Almanac.tsx"
 import { getActiveEvents } from "../game/events.ts"
+import { getWorldDay } from "../game/calendar.ts"
+import { ERA_NEW_DAYS } from "../game/eras.ts"
+import { EraIcon } from "./EraIcon.tsx"
 import { effectColor } from "./eventText.ts"
 
 // onOpenChronicle: shows the Chronicle in the Settings tab
@@ -27,12 +30,32 @@ export function Sidebar({onOpenChronicle = () => {}}: {onOpenChronicle?: () => v
             <Purse />
             <section id="quickTaskDisplay" className={classNames("card", !quickTasksShown && "hidden")}>
                 <h2 className="card-label">Working on</h2>
+                <ClosingNote />
                 <QuickTask kind="Job" className="job" />
                 <QuickTask kind="Skill" className="skill" />
             </section>
             <Almanac onOpenChronicle={onOpenChronicle} />
             <Stats />
         </aside>
+    )
+}
+
+// "Merchant closed in 1300 · now Guild merchant", for the first days after
+// an era closes the job you were working on
+function getClosingNote(): {from: string, year: number, to: string} | null {
+    const closing = gameData.lastClosing
+    if (!closing || getWorldDay() - closing.day >= ERA_NEW_DAYS) return null
+    return {from: closing.from, year: closing.year, to: closing.to}
+}
+
+function ClosingNote() {
+    const note = useGameValue(getClosingNote, sameData)
+    if (!note) return null
+    return (
+        <p className="card-note closing-note">
+            <EraIcon />
+            <span>{note.from + " closed in " + note.year + " · now "}<strong>{note.to}</strong></span>
+        </p>
     )
 }
 

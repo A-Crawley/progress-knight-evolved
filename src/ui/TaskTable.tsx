@@ -6,7 +6,9 @@ import { Fragment, memo, useRef } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, idsByName, jobCategories, skillCategories, tooltips } from "../game/data.ts"
 import { Job, Skill } from "../game/classes.ts"
-import { setSkillSkipped, setTask } from "../game/engine.ts"
+import { getInheritedXpMultiplier, getPredecessor, setSkillSkipped, setTask } from "../game/engine.ts"
+import { getEraRow } from "../game/eras.ts"
+import type { EraRow } from "../game/eras.ts"
 import { gameData } from "../game/state.ts"
 import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
 import { EmptyCoinParts, FormattedCoins } from "./CoinParts.tsx"
@@ -16,6 +18,8 @@ import { classNames, removeSpaces } from "./classNames.ts"
 import { format, formatCoins, splitEffect } from "./format.ts"
 import { useFillBar } from "./fillBar.ts"
 import { useLongPressTooltip } from "./useLongPressTooltip.ts"
+import { getCategoryEraHint } from "./eraText.ts"
+import { EraIcon } from "./EraIcon.tsx"
 
 export type TaskKind = "jobs" | "skills"
 
@@ -34,7 +38,7 @@ export function TaskTable({kind}: {kind: TaskKind}) {
                 <tbody>
                     {Object.entries(categories).map(([categoryName, names]) => (
                         <Fragment key={categoryName}>
-                            <TaskHeaderRow kind={kind} categoryName={categoryName} />
+                            <TaskHeaderRow kind={kind} categoryName={categoryName} names={names} />
                             {names.map(name => <TaskRow key={name} name={name} categoryName={categoryName} />)}
                             <RequiredRow categoryName={categoryName} category={names} items={false} />
                         </Fragment>
@@ -45,8 +49,9 @@ export function TaskTable({kind}: {kind: TaskKind}) {
     )
 }
 
-const TaskHeaderRow = memo(function TaskHeaderRow({kind, categoryName}: {kind: TaskKind, categoryName: string}) {
+const TaskHeaderRow = memo(function TaskHeaderRow({kind, categoryName, names}: {kind: TaskKind, categoryName: string, names: string[]}) {
     const header = useGameValue(() => ({
+        eraHint: kind == "jobs" ? getCategoryEraHint(names, gameData.taskData as Record<string, Job>) : null,
         locked: isCategoryHidden(categoryName),
         unseen: isCategoryUnseen(categoryName),
         maxLevelShown: gameData.rebirthOneCount > 0,
@@ -55,7 +60,7 @@ const TaskHeaderRow = memo(function TaskHeaderRow({kind, categoryName}: {kind: T
     return (
         <tr className={classNames(removeSpaces(categoryName), "headerRow", header.locked && "locked-header", header.unseen && "hidden")}
             style={{"--cat": headerRowColors[categoryName as keyof typeof headerRowColors]} as CSSProperties}>
-            <th className="category">{categoryName}</th>
+            <th className="category">{categoryName}{header.eraHint && <span className="category-hint era-hint">{header.eraHint}</span>}</th>
             <th>Level</th>
             <th className="valueType">{kind == "jobs" ? "Income / day" : "Effect"}</th>
             <th>XP / day</th>
@@ -66,12 +71,27 @@ const TaskHeaderRow = memo(function TaskHeaderRow({kind, categoryName}: {kind: T
     )
 })
 
+// What a job's tooltip adds to its description: the bonus a successor
+// inherits from the job it replaced, "×4.2 XP from Merchant"
+function getInheritedText(task: Job | Skill): string | null {
+    if (!(task instanceof Job)) return null
+    const predecessor = getPredecessor(task)
+    const multiplier = getInheritedXpMultiplier(task)
+    if (!predecessor || multiplier <= 1) return null
+    return "×" + Number(multiplier.toFixed(2)) + " XP from " + predecessor.name
+}
+
 // Everything a row shows for a job or skill
 function getRow(name: string, categoryName: string) {
     const task = gameData.taskData[name]
     const isSkill = task instanceof Skill
     const effect = isSkill ? splitEffect(task.getEffectDescription()) : null
+    const unlocked = gameData.requirements[name].completed
+    const era: EraRow = task instanceof Job ? getEraRow(task.baseData, unlocked) : {kind: "open", closesIn: null}
+    const categoryShown = !isCategoryHidden(categoryName) && !isCategoryUnseen(categoryName)
     return {
+        era,
+        inherited: getInheritedText(task),
         level: task.level,
         current: task == gameData.currentJob || task == gameData.currentSkill,
         multiplier: effect?.multiplier ?? null,
@@ -84,8 +104,10 @@ function getRow(name: string, categoryName: string) {
         isSkill,
         skipShown: isSkill && gameData.automation.autoLearn,
         skipped: isSkill && gameData.automation.skippedSkills.has(idsByName[name]),
-        // A locked or unseen category keeps its rows out of sight, whatever they need
-        hidden: !gameData.requirements[name].completed || isCategoryHidden(categoryName) || isCategoryUnseen(categoryName),
+        // A locked or unseen category keeps its rows out of sight, whatever they
+        // need. A row opening in a later era shows locked once any life has
+        // reached it; a closed one shows if this life unlocked it.
+        hidden: !categoryShown || era.kind == "unseen" || (era.kind == "open" && !unlocked),
     }
 }
 
@@ -99,6 +121,9 @@ const TaskRow = memo(function TaskRow({name, categoryName}: {name: string, categ
         <tr id={"row " + name} className={classNames(row.hidden && "hidden")}
             style={{"--cat": headerRowColors[categoryName as keyof typeof headerRowColors]} as CSSProperties}>
             <td>
+                {row.era.kind == "closed" && <ClosedBar name={name} era={row.era} />}
+                {row.era.kind == "opens" && <OpensBar name={name} year={row.era.year} />}
+                {row.era.kind == "open" && <>
                 {/* A real button, so the keyboard can start the task too */}
                 <button type="button" className={classNames("progress-bar progressBar tooltip", longPress.shown && "tooltip-open")} aria-describedby={tooltipId} {...longPress.handlers} onClick={() => {setTask(name); requestRender()}}>
                     {/* The track clips the sliding fill; the tooltip stays outside it */}
@@ -107,20 +132,25 @@ const TaskRow = memo(function TaskRow({name, categoryName}: {name: string, categ
                     </span>
                     <span className="progress-text name">{name}</span>
                     <span className="bar-end">
+                        {row.era.closesIn !== null && <span className="closes-hint">{"Closes in " + row.era.closesIn}</span>}
                         {row.current && <span className="active-badge">Active</span>}
                         {/* Phones show the level inside the bar (hidden from 640px) */}
                         <span className="phone-level">{"lvl " + row.level}</span>
                     </span>
-                    <span className="tooltipText" id={tooltipId} aria-hidden="true">{tooltips[name]}</span>
+                    <span className="tooltipText" id={tooltipId} aria-hidden="true">
+                        {tooltips[name]}
+                        {row.inherited && <span className="tooltip-source">{row.inherited}</span>}
+                    </span>
                 </button>
+                </>}
             </td>
-            <td className="level">{row.level}</td>
+            <td className="level">{row.era.kind != "opens" && row.level}</td>
             <td className="value">
                 <div className="effect">{row.multiplier !== null && <><strong>{row.multiplier}</strong> <span>{row.what}</span></>}</div>
-                <div className="income">{row.income ? <FormattedCoins parts={row.income} /> : <EmptyCoinParts />}</div>
+                <div className="income">{row.income && row.era.kind == "open" ? <FormattedCoins parts={row.income} /> : row.era.kind == "closed" ? "—" : <EmptyCoinParts />}</div>
             </td>
-            <td className="xpGain">{row.xpGain}</td>
-            <td className="xpLeft">{row.xpLeft}</td>
+            <td className="xpGain">{row.era.kind == "open" ? row.xpGain : row.era.kind == "closed" ? "—" : ""}</td>
+            <td className="xpLeft">{row.era.kind == "open" ? row.xpLeft : row.era.kind == "closed" ? "—" : ""}</td>
             <td className={classNames("maxLevel", !row.maxLevelShown && "hidden")}>{row.maxLevel}</td>
             <td className="skipSkill" style={{display: row.skipShown ? "table-cell" : "none"}}>
                 {" "}
@@ -132,3 +162,30 @@ const TaskRow = memo(function TaskRow({name, categoryName}: {name: string, categ
         </tr>
     )
 })
+
+// A job or item closed by an era: muted, with what took its place
+export function ClosedBar({name, era}: {name: string, era: Extract<EraRow, {kind: "closed"}>}) {
+    return (
+        <div className="era-bar era-closed">
+            <span className="name">{name}</span>
+            {" "}
+            <span className="era-closed-note">
+                {"Closed in " + era.year}
+                {era.successor && <>{" · became "}<a href={"#" + encodeURIComponent("row " + era.successor)}>{era.successor + " →"}</a></>}
+            </span>
+        </div>
+    )
+}
+
+// A job or item of a later era that some life has reached: locked until
+// that year
+export function OpensBar({name, year}: {name: string, year: number}) {
+    return (
+        <div className="era-bar era-opens">
+            <EraIcon />
+            <span className="name">{name}</span>
+            {" "}
+            <span className="era-opens-note">{"Opens in " + year}</span>
+        </div>
+    )
+}
