@@ -232,8 +232,9 @@ function applyClosings(): void {
         gameData.currentJob = getJobAfterClosing(job)
         gameData.lastClosing = {from: job.name, to: gameData.currentJob.name, year: job.baseData.closesIn as number, day: getWorldDay()}
     }
+    // Also anything not yet open, which only a changed save could hold
     for (const misc of [...gameData.currentMisc]) {
-        if (isClosed(misc.baseData)) removeMisc(misc)
+        if (!isOpen(misc.baseData)) removeMisc(misc)
     }
 }
 

@@ -7,11 +7,12 @@
 const SHOP_EVERY_TICKS = 100
 
 // Buys the most expensive property, then any misc items, that keep total
-// expenses within half of income.
+// expenses within half of income. Only what the game lets a player buy:
+// unlocked, and open in the year the life is in (eras).
 function shop(game) {
     const { gameData, itemCategories } = game.api
     const budget = game.api.getIncome() / 2
-    const unlocked = name => gameData.requirements[name].isCompleted()
+    const unlocked = name => gameData.requirements[name].isCompleted() && game.api.isOpen(gameData.itemData[name].baseData)
     let best = gameData.itemData["Homeless"]
     for (const name of itemCategories["Properties"]) {
         const item = gameData.itemData[name]
