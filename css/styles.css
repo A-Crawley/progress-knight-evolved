@@ -2941,6 +2941,31 @@ body.effects-off .fx-anim::after {
     color: var(--pk-gain-text);
 }
 
+/* The era under the date: the first era in the secondary colour, a later
+   one in the era colour; the next era, once glimpsed, as a quiet line */
+.almanac-era {
+    display: flex;
+    align-items: center;
+    gap: var(--pk-space-2);
+    font-size: var(--pk-text-sm);
+    font-weight: 600;
+    color: var(--pk-text-secondary);
+}
+
+.almanac-era-later {
+    color: var(--pk-era);
+}
+
+.almanac .almanac-era-began {
+    background-color: var(--pk-era);
+    color: var(--pk-on-era);
+}
+
+.almanac-glimpse strong {
+    font-weight: 600;
+    color: var(--pk-text-secondary);
+}
+
 .almanac-next-event strong {
     font-weight: 600;
     color: var(--pk-text-secondary);
