@@ -5,7 +5,7 @@
 
 import { eras, jobs, skills, items } from "./data.ts"
 import { gameData } from "./state.ts"
-import { getWorldDay, getWorldYear, seasonStart, DAYS_PER_YEAR } from "./calendar.ts"
+import { getWorldDay, getWorldYear, seasonStart, toDate, DAYS_PER_YEAR } from "./calendar.ts"
 import type { EraDefinition, JobDefinition, ItemDefinition } from "./types.ts"
 
 // How close the record has to come to the next era for it to be glimpsed
@@ -47,6 +47,25 @@ export function getGlimpsedEra(): EraDefinition | undefined {
     const next = eras.find(era => !isEraReached(era))
     if (!next) return undefined
     return getRecordDay() >= eraStartDay(next) - ERA_GLIMPSE_YEARS * DAYS_PER_YEAR ? next : undefined
+}
+
+// The era whose banner the Jobs tab shows: the one this life is in, unless
+// it's the first (every life starts there) or this life has dismissed it
+export function getEraBanner(): EraDefinition | undefined {
+    const era = getEra(getWorldYear())
+    if (!era || era == eras[0] || gameData.eraBannersDismissed.includes(era.id)) return undefined
+    return era
+}
+
+// Days after an era begins, or a job closes, that it's shown as just begun
+export const ERA_NEW_DAYS = 30
+
+// Whether the era a world day is in began in the last ERA_NEW_DAYS. The
+// first era never counts as begun.
+export function isEraNew(worldDay: number): boolean {
+    const era = getEra(toDate(worldDay).year)
+    if (!era || era == eras[0]) return false
+    return Math.floor(worldDay) - eraStartDay(era) < ERA_NEW_DAYS
 }
 
 // ---------------------------------------------------------------------------

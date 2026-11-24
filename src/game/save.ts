@@ -1,6 +1,6 @@
 // Saving, loading, importing and exporting game data.
 
-import { namesById, idsByName } from "./data.ts"
+import { namesById, idsByName, eras } from "./data.ts"
 import { gameData, MAX_LIVES } from "./state.ts"
 import { GROWING_UP_DAYS, worldDayAt } from "./calendar.ts"
 import { daysToYears } from "./rules.ts"
@@ -102,9 +102,10 @@ export function exportSave(): string {
 //            adds the furthest date any life has reached
 //   8      - each past life keeps its age in days, so the date it reached
 //            is exact rather than rounded down to the year
+//   9      - adds the era banners this life has dismissed
 // ---------------------------------------------------------------------------
 
-export const SAVE_VERSION = 8
+export const SAVE_VERSION = 9
 
 // What each version of a save looks like, as the game wrote it. A save read
 // from storage or imported by the player is only checked as far as
@@ -184,9 +185,13 @@ export interface SaveV8 extends Omit<SaveV7, "version" | "lives"> {
     version: 8
     lives: Life[]
 }
-type AnySave = LegacySave | SaveV2 | SaveV3 | SaveV4 | SaveV5 | SaveV6 | SaveV7 | SaveV8
+export interface SaveV9 extends Omit<SaveV8, "version"> {
+    version: 9
+    eraBannersDismissed: string[] // era ids
+}
+type AnySave = LegacySave | SaveV2 | SaveV3 | SaveV4 | SaveV5 | SaveV6 | SaveV7 | SaveV8 | SaveV9
 
-export function serializeGameData(): SaveV8 {
+export function serializeGameData(): SaveV9 {
     const tasks: Record<string, SavedTask> = {}
     for (const name in gameData.taskData) {
         const task = gameData.taskData[name]
@@ -221,12 +226,13 @@ export function serializeGameData(): SaveV8 {
         lives: gameData.lives.map(life => ({...life, job: {...life.job}, skill: {...life.skill}})),
         lifePeakCoins: gameData.lifePeakCoins,
         furthestDay: gameData.furthestDay,
+        eraBannersDismissed: [...gameData.eraBannersDismissed],
     }
 }
 
 // Converts any supported save into the current format. Throws if the save
 // can't be understood.
-export function migrateSave(input: unknown): SaveV8 {
+export function migrateSave(input: unknown): SaveV9 {
     if (input === null || typeof input !== "object" || Array.isArray(input)) {
         throw new Error("Save is not an object")
     }
@@ -241,6 +247,7 @@ export function migrateSave(input: unknown): SaveV8 {
     if (save.version === 5) save = migrateV5ToV6(save)
     if (save.version === 6) save = migrateV6ToV7(save)
     if (save.version === 7) save = migrateV7ToV8(save)
+    if (save.version === 8) save = migrateV8ToV9(save)
 
     if (save.version > SAVE_VERSION) {
         throw new Error("Save is from a newer version of the game")
@@ -417,7 +424,15 @@ function migrateV7ToV8(save: SaveV7): SaveV8 {
     })
 }
 
-function validateSave(save: SaveV8): void {
+// Version 8 had no era banners: none dismissed
+function migrateV8ToV9(save: SaveV8): SaveV9 {
+    return Object.assign({}, save, {
+        version: 9 as const,
+        eraBannersDismissed: [],
+    })
+}
+
+function validateSave(save: SaveV9): void {
     for (const key of ["coins", "days"] as const) {
         if (!isFiniteNumber(save[key])) throw new Error("Save has an invalid " + key)
     }
@@ -433,7 +448,7 @@ function isFiniteNumber(value: unknown): value is number {
 // Applies a current-format save on top of freshly initialised gameData.
 // Anything the save doesn't have, or that no longer exists in the game,
 // keeps its default value.
-function applySaveData(save: SaveV8): void {
+function applySaveData(save: SaveV9): void {
     for (const key of ["coins", "days", "evil", "rebirthOneCount", "rebirthTwoCount"] as const) {
         const value: unknown = save[key]
         if (isFiniteNumber(value)) gameData[key] = value
@@ -443,6 +458,10 @@ function applySaveData(save: SaveV8): void {
     // A save that lacks it (or has nonsense) starts the record from today
     if (isFiniteNumber(save.furthestDay) && save.furthestDay >= 0) gameData.furthestDay = save.furthestDay
     gameData.furthestDay = Math.max(gameData.furthestDay, worldDayAt(gameData.days))
+    // Only eras the game has, once each
+    if (Array.isArray(save.eraBannersDismissed)) {
+        gameData.eraBannersDismissed = eras.map(era => era.id).filter(id => (save.eraBannersDismissed as unknown[]).includes(id))
+    }
     if (Array.isArray(save.lives)) {
         gameData.lives = save.lives.map(readLife).filter((life): life is Life => life !== undefined).slice(-MAX_LIVES)
     }

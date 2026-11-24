@@ -16,6 +16,8 @@
 // fixtures/v6-save.json is that state with two past lives in version 6, when
 // the date ran on from life to life, and fixtures/v7-save.json the same in
 // version 7, when a life's age was kept in whole years only.
+// fixtures/v8-save.json is that state again in version 8, before the era
+// banners dismissed were saved.
 
 import { test } from "vitest"
 import assert from "node:assert/strict"
@@ -32,6 +34,7 @@ const v5Raw = fs.readFileSync(path.join(import.meta.dirname, "fixtures", "v5-sav
 const v5LivesRaw = fs.readFileSync(path.join(import.meta.dirname, "fixtures", "v5-save-lives.json"), "utf8")
 const v6Raw = fs.readFileSync(path.join(import.meta.dirname, "fixtures", "v6-save.json"), "utf8")
 const v7Raw = fs.readFileSync(path.join(import.meta.dirname, "fixtures", "v7-save.json"), "utf8")
+const v8Raw = fs.readFileSync(path.join(import.meta.dirname, "fixtures", "v8-save.json"), "utf8")
 
 function savedState(game) {
     return JSON.parse(JSON.stringify(game.api.serializeGameData()))
@@ -272,7 +275,7 @@ test("older saves start with no past lives and the coins held as the peak", asyn
         assert.deepEqual(savedState(game), savedState(fromLegacy))
     }
     const saved = savedState(fromLegacy)
-    assert.equal(saved.version, 8)
+    assert.equal(saved.version, fromLegacy.api.SAVE_VERSION)
     assert.deepEqual(saved.lives, [])
 })
 
@@ -359,7 +362,7 @@ test("version 5 and 6 saves with past lives keep the lives, and this life wakes 
         assert.equal(game.gameData.furthestDay, 56 * 365)
 
         const saved = savedState(game)
-        assert.equal(saved.version, 8)
+        assert.equal(saved.version, game.api.SAVE_VERSION)
         assert.equal(saved.furthestDay, 56 * 365)
         assert.equal(saved.lifeStartDay, undefined)
         assert.deepEqual(saved.lives.map(entry => [entry.born, entry.ended]), [[undefined, undefined], [undefined, undefined]])
@@ -453,4 +456,30 @@ test("a new game, and so a hard reset, starts on Summer 1, 1200", async () => {
     const game = await loadGame()
     assert.ok(game.gameData.furthestDay < 1, "with no record")
     assert.equal(game.api.formatDate(game.api.toDate(game.api.getWorldDay())), "Summer 1, 1200")
+})
+
+test("a version 8 save loads to the same state as version 7, with no era banners dismissed", async () => {
+    const v7 = await loadGame({ localStorage: { gameDataSave: v7Raw } })
+    const v8 = await loadGame({ localStorage: { gameDataSave: v8Raw } })
+    assert.equal(v8.errors.length, 0, v8.errors.join("\n"))
+    assert.deepEqual(Array.from(v8.gameData.eraBannersDismissed), [])
+    assert.deepEqual(savedState(v8), savedState(v7))
+})
+
+test("the era banners dismissed are saved and loaded, and bad values are ignored", async () => {
+    const game = await loadGame()
+    game.api.dismissEraBanner("age_of_fiefs")
+    game.api.saveGameData()
+    const raw = game.window.localStorage.getItem("gameDataSave")
+    assert.deepEqual(JSON.parse(raw).eraBannersDismissed, ["age_of_fiefs"])
+    const reloaded = await loadGame({ localStorage: { gameDataSave: raw } })
+    assert.deepEqual(Array.from(reloaded.gameData.eraBannersDismissed), ["age_of_fiefs"])
+
+    for (const value of ["age_of_fiefs", null, 3, {}, ["nowhere", 7, null], ["age_of_fiefs", "age_of_fiefs", "toString"]]) {
+        const save = { ...JSON.parse(raw), eraBannersDismissed: value }
+        const bad = await loadGame({ localStorage: { gameDataSave: JSON.stringify(save) } })
+        assert.equal(bad.errors.length, 0, bad.errors.join("\n"))
+        const expected = Array.isArray(value) && value.includes("age_of_fiefs") ? ["age_of_fiefs"] : []
+        assert.deepEqual(Array.from(bad.gameData.eraBannersDismissed), expected, JSON.stringify(value))
+    }
 })
