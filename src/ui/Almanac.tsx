@@ -1,5 +1,6 @@
 // The Almanac, a small sidebar card: today's date, the days to the next
-// season, how far through this season the world is, the furthest date any
+// season, the era (and the next one, once glimpsed), how far through this
+// season the world is, the furthest date any
 // life has reached (or "New furthest" once this life passes it), the events
 // running or
 // the next one, and a way to the Chronicle in Settings. "Coming up" opens a
@@ -7,7 +8,9 @@
 // once a life has been lived.
 
 import { useRef, useState } from "react"
-import { calendar } from "../game/data.ts"
+import { calendar, eras } from "../game/data.ts"
+import { eraStartDay, getEra, getGlimpsedEra, isEraNew } from "../game/eras.ts"
+import { EraIcon } from "./EraIcon.tsx"
 import type { SeasonId } from "../game/data.ts"
 import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calendar.ts"
 import { isUnlocked } from "../game/engine.ts"
@@ -64,6 +67,21 @@ function getView(expanded: boolean) {
             when: seasonYearText(occurrence) + " · " + occurrence.event.effects.map(effectText).join(", "),
         })),
         nextEvent: upcoming.length > 0 ? {name: upcoming[0].event.name, until: untilText(upcoming[0].start - today)} : null,
+        era: getEraLine(today),
+    }
+}
+
+// The era today is in, and the next one once it's glimpsed: "Age of Guilds
+// in 23 years". A later era than the first is shown in the era colour, with
+// "Began" for its first days.
+function getEraLine(today: number) {
+    const era = getEra(toDate(today).year)
+    const glimpsed = getGlimpsedEra()
+    return {
+        name: era?.name ?? null,
+        later: era !== undefined && era != eras[0],
+        began: isEraNew(today),
+        glimpsed: glimpsed ? {name: glimpsed.name, until: untilText(eraStartDay(glimpsed) - today), when: reachedText(eraStartDay(glimpsed))} : null,
     }
 }
 
@@ -98,6 +116,19 @@ export function Almanac({onOpenChronicle}: {onOpenChronicle: () => void}) {
                     <span className="almanac-date"><SeasonIcon season={view.season} /><span id="almanacDate">{view.date}</span></span>
                     <span className="card-note almanac-next">{view.toNext}</span>
                 </div>
+                {view.era.name && (
+                    <span className={classNames("almanac-era", view.era.later && "almanac-era-later")}>
+                        <EraIcon />{view.era.name}
+                        {view.era.began && <>{" "}<span className="almanac-began almanac-era-began">Began</span></>}
+                    </span>
+                )}
+                {view.era.glimpsed && (
+                    <span className="card-note almanac-line almanac-glimpse">
+                        <span><strong>{view.era.glimpsed.name}</strong>{" " + view.era.glimpsed.until}</span>
+                        {" "}
+                        <span>{view.era.glimpsed.when}</span>
+                    </span>
+                )}
                 <div className="life-bar almanac-bar" role="img" aria-label={view.barLabel}>
                     <div ref={seasonFill} className="life-bar-fill" style={{backgroundColor: "var(--pk-season-" + view.season + ")"}}></div>
                 </div>

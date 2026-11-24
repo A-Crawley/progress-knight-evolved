@@ -267,3 +267,48 @@ test("mistakes in the era fields fail when the game starts", async () => {
     await assert.rejects(withData(real => ({items: real.items.map(item => item.id == "tent" ? {...item, closesIn: 1230} : item)})), /properties never close/)
     await assert.rejects(withData(real => ({skills: real.skills.map(skill => skill.id == "strength" ? {...skill, closesIn: 1230} : skill)})), /skills never close/)
 })
+
+// ---------------------------------------------------------------------------
+// What the page shows about eras
+
+test("the banner shows for the era this life is in, never the first, until dismissed for the rest of the life", async () => {
+    const game = await loadEngine({data: withTestEra})
+    const { api, gameData } = game
+    assert.equal(api.getEraBanner(), undefined)
+
+    goToYear(gameData, 1230)
+    game.fastTicks(1)
+    assert.equal(api.getEraBanner().id, "test_age")
+    api.dismissEraBanner("test_age")
+    api.dismissEraBanner("test_age")
+    assert.deepEqual(Array.from(gameData.eraBannersDismissed), ["test_age"])
+    assert.equal(api.getEraBanner(), undefined)
+
+    // The next life that reaches it sees it again
+    api.rebirthOne()
+    assert.deepEqual(Array.from(gameData.eraBannersDismissed), [])
+    goToYear(gameData, 1230)
+    assert.equal(api.getEraBanner().id, "test_age")
+})
+
+test("an era is new for its first 30 days; the first era never is", async () => {
+    const { api } = await loadEngine({data: withTestEra})
+    assert.equal(api.isEraNew(0), false)
+    assert.equal(api.isEraNew(startOf(1230) - 1), false)
+    assert.equal(api.isEraNew(startOf(1230)), true)
+    assert.equal(api.isEraNew(startOf(1230) + 29.9), true)
+    assert.equal(api.isEraNew(startOf(1230) + 30), false)
+})
+
+test("the last job closing is remembered for this life, with where you moved to", async () => {
+    const game = await traderIn1229(2)
+    const { api, gameData } = game
+    assert.equal(gameData.lastClosing, null)
+    game.gameData.days += 2
+    game.fastTicks(1)
+    assert.deepEqual({...gameData.lastClosing, day: Math.floor(gameData.lastClosing.day)},
+        {from: "Test trader", to: "Farmer", year: 1230, day: startOf(1230)})
+
+    api.rebirthOne()
+    assert.equal(gameData.lastClosing, null)
+})

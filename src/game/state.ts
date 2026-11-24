@@ -27,6 +27,15 @@ export interface Life {
 // Past lives kept; older ones are dropped
 export const MAX_LIVES = 50
 
+// An era closing the job you were working on, and where you moved to
+// (names), on a world day
+export interface JobClosing {
+    from: string
+    to: string
+    year: number
+    day: number
+}
+
 export interface GameData {
     taskData: Record<string, Job | Skill> // by name
     itemData: Record<string, Item> // by name
@@ -43,6 +52,9 @@ export interface GameData {
     lives: Life[] // finished lives, newest last
     lifePeakCoins: number // the most coins held in this life so far
     furthestDay: number // the furthest world day any life has reached; it never goes down
+
+    eraBannersDismissed: string[] // era ids whose banner this life has dismissed
+    lastClosing: JobClosing | null // in this life; not saved, as it's only shown for a few days
 
     currentJob: Job
     currentSkill: Skill
@@ -82,6 +94,11 @@ export const gameData: GameData = {
 
     // Saved since save version 7
     furthestDay: 0,
+
+    // Saved since save version 9
+    eraBannersDismissed: [],
+
+    lastClosing: null,
 
     currentJob: notBuiltYet,
     currentSkill: notBuiltYet,

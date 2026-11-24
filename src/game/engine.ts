@@ -155,6 +155,11 @@ export function setSkillSkipped(skillName: string, skipped: boolean): void {
     skipped ? gameData.automation.skippedSkills.add(id) : gameData.automation.skippedSkills.delete(id)
 }
 
+// Hides an era's banner for the rest of this life
+export function dismissEraBanner(eraId: string): void {
+    if (!gameData.eraBannersDismissed.includes(eraId)) gameData.eraBannersDismissed.push(eraId)
+}
+
 // A job or item that is closed, or whose era hasn't come, can't be started
 export function setTask(taskName: string): void {
     const task = gameData.taskData[taskName]
@@ -222,7 +227,11 @@ export function getJobAfterClosing(job: Job): Job {
 // its upkeep stops. Worked out from the date each step, so it also holds
 // after loading a save.
 function applyClosings(): void {
-    if (isClosed(gameData.currentJob.baseData)) gameData.currentJob = getJobAfterClosing(gameData.currentJob)
+    const job = gameData.currentJob
+    if (isClosed(job.baseData)) {
+        gameData.currentJob = getJobAfterClosing(job)
+        gameData.lastClosing = {from: job.name, to: gameData.currentJob.name, year: job.baseData.closesIn as number, day: getWorldDay()}
+    }
     for (const misc of [...gameData.currentMisc]) {
         if (isClosed(misc.baseData)) removeMisc(misc)
     }
@@ -476,6 +485,8 @@ function rebirthReset() {
     gameData.currentSkill = getTaskById(startingItems.skill) as Skill
     gameData.currentProperty = getItemById(startingItems.property) as Item
     gameData.currentMisc = []
+    gameData.eraBannersDismissed = []
+    gameData.lastClosing = null
 
     for (const taskName in gameData.taskData) {
         const task = gameData.taskData[taskName]

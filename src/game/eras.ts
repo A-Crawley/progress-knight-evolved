@@ -3,9 +3,9 @@
 // is stored; it all follows from the date and the furthest date any life
 // has reached (gameData.furthestDay).
 
-import { eras, jobs, skills, items } from "./data.ts"
+import { eras, jobs, skills, items, namesById } from "./data.ts"
 import { gameData } from "./state.ts"
-import { getWorldDay, getWorldYear, seasonStart, DAYS_PER_YEAR } from "./calendar.ts"
+import { getWorldDay, getWorldYear, seasonStart, toDate, DAYS_PER_YEAR } from "./calendar.ts"
 import type { EraDefinition, JobDefinition, ItemDefinition } from "./types.ts"
 
 // How close the record has to come to the next era for it to be glimpsed
@@ -49,6 +49,25 @@ export function getGlimpsedEra(): EraDefinition | undefined {
     return getRecordDay() >= eraStartDay(next) - ERA_GLIMPSE_YEARS * DAYS_PER_YEAR ? next : undefined
 }
 
+// The era whose banner the Jobs tab shows: the one this life is in, unless
+// it's the first (every life starts there) or this life has dismissed it
+export function getEraBanner(): EraDefinition | undefined {
+    const era = getEra(getWorldYear())
+    if (!era || era == eras[0] || gameData.eraBannersDismissed.includes(era.id)) return undefined
+    return era
+}
+
+// Days after an era begins, or a job closes, that it's shown as just begun
+export const ERA_NEW_DAYS = 30
+
+// Whether the era a world day is in began in the last ERA_NEW_DAYS. The
+// first era never counts as begun.
+export function isEraNew(worldDay: number): boolean {
+    const era = getEra(toDate(worldDay).year)
+    if (!era || era == eras[0]) return false
+    return Math.floor(worldDay) - eraStartDay(era) < ERA_NEW_DAYS
+}
+
 // ---------------------------------------------------------------------------
 // Jobs and items that open and close with eras (availableFrom, closesIn and
 // successor in types.ts). Skills never close, and neither do properties.
@@ -67,6 +86,35 @@ export function isNotYetOpen(definition: JobDefinition | ItemDefinition): boolea
 // requirement still applies on top.
 export function isOpen(definition: JobDefinition | ItemDefinition): boolean {
     return !isClosed(definition) && !isNotYetOpen(definition)
+}
+
+// Whether any life, this one included, has reached the start of a year
+export function isYearReached(year: number): boolean {
+    return getRecordDay() >= seasonStart(year, 0)
+}
+
+// How a job's or item's row shows its era, given whether it's unlocked:
+// open (warning that it closes, once any life has seen that year), closed
+// (with its successor, if this life unlocked it), opening later (as a locked
+// row, once any life has reached that year), or out of sight
+export type EraRow =
+    | {kind: "open", closesIn: number | null}
+    | {kind: "closed", year: number, successor: string | null}
+    | {kind: "opens", year: number, era: string}
+    | {kind: "unseen"}
+
+export function getEraRow(definition: JobDefinition | ItemDefinition, unlocked: boolean): EraRow {
+    if (isClosed(definition)) {
+        if (!unlocked) return {kind: "unseen"}
+        return {kind: "closed", year: definition.closesIn as number, successor: namesById[definition.successor as string] ?? null}
+    }
+    if (isNotYetOpen(definition)) {
+        const year = definition.availableFrom as number
+        if (!isYearReached(year)) return {kind: "unseen"}
+        return {kind: "opens", year, era: getEra(year)?.name ?? ""}
+    }
+    const closesIn = definition.closesIn
+    return {kind: "open", closesIn: closesIn !== undefined && isYearReached(closesIn) ? closesIn : null}
 }
 
 // Checks the era fields of every job and item, so a mistake in the data

@@ -1,14 +1,19 @@
 // The Chronicle, in the Settings tab: how far every life reached. Every life
 // wakes at 14 in Summer 1200, so a life is a bar from there to the date it
 // reached; the reach chart stacks them, newest first, with the record
-// marked. A list below gives each life a strip of its Summers and Winters on
-// the same scale, and a lane above the strip marking each event it lived
-// through. The life being lived updates live.
+// marked, over a band for each era reached or glimpsed, labelled along the
+// top; the part of a bar in a later era takes the era colour. A list below
+// gives each life a strip of its Summers and Winters on the same scale, a
+// lane above the strip marking each event it lived through, and the eras it
+// reached. The life being lived updates live.
 
 import { useState } from "react"
 import type { CSSProperties } from "react"
 import { DAYS_PER_YEAR, getWorldDay, toDate, WAKE_DAY } from "../game/calendar.ts"
-import { calendar, events } from "../game/data.ts"
+import { calendar, eras, events } from "../game/data.ts"
+import { eraStartDay, getGlimpsedEra, isEraReached } from "../game/eras.ts"
+import type { EraDefinition } from "../game/types.ts"
+import { EraIcon } from "./EraIcon.tsx"
 import { getEventsInSpan, isEventUnlocked, isRare } from "../game/events.ts"
 import type { EventOccurrence } from "../game/events.ts"
 import { getLifeSpans, getRecord, reachedText, toRoman } from "../game/history.ts"
@@ -99,6 +104,26 @@ export function getEventSummary(found: EventOccurrence[]): string {
     return parts.join(" · ")
 }
 
+// The eras the Chronicle draws: those any life has reached, and the next
+// one once glimpsed, if they start within the scale (world days)
+function getShownEras(scaleEnd: number): EraDefinition[] {
+    const glimpsed = getGlimpsedEra()
+    return eras.filter(era => eraStartDay(era) < scaleEnd && (isEraReached(era) || era == glimpsed))
+}
+
+// The world day an era ends: the start of the next one, if any
+function eraEndDay(era: EraDefinition): number {
+    const next = eras[eras.indexOf(era) + 1]
+    return next ? eraStartDay(next) : Infinity
+}
+
+// The parts of a life spent in eras after the first, as spans of world days
+function laterEraParts(span: LifeSpan, shown: EraDefinition[]): {id: string, from: number, to: number}[] {
+    return shown.filter(era => era != eras[0] && eraStartDay(era) < span.ended).map(era => ({
+        id: era.id, from: Math.max(eraStartDay(era), span.woke), to: Math.min(eraEndDay(era), span.ended),
+    }))
+}
+
 // "Touched the eye at 41 · furthest", "Living, age 34"
 function endText(span: LifeSpan, record: WorldRecord): string {
     const text = span.living ? "Living, age " + span.age
@@ -134,6 +159,10 @@ export function Chronicle() {
     const furthestX = toX(record.day)
     const holder = spans.find(span => span.life == record.life)
     const lives = plural(spans.length, "life", "lives")
+    const scaleEnd = WAKE_DAY + scale.years * DAYS_PER_YEAR
+    const shownEras = getShownEras(scaleEnd)
+    const laterEras = shownEras.filter(era => era != eras[0])
+    const erasLabel = laterEras.length ? " Eras: " + shownEras.map(era => era.name + " from " + era.startYear).join(", ") + "." : ""
 
     return (
         <section id="chronicle" className="settings-card settings-wide chronicle" aria-labelledby="chronicleLabel">
@@ -146,10 +175,24 @@ export function Chronicle() {
             <p className="settings-help">Every life begins in {reachedText(WAKE_DAY)}. Live longer to see more of the world.</p>
 
             <div className="chronicle-overview">
-                <div className={classNames("chronicle-reach", rowHeight < ROW_LABELS && "chronicle-reach-dense")} role="img"
+                <div className={classNames("chronicle-reach", rowHeight < ROW_LABELS && "chronicle-reach-dense", shownEras.length > 0 && "chronicle-reach-eras")} role="img"
                     aria-label={lives + ", each a bar from " + reachedText(WAKE_DAY) + " to the date it reached. The furthest"
-                        + (holder ? ", life " + toRoman(holder.life) + "," : "") + " reached " + reachedText(record.day) + "."}
+                        + (holder ? ", life " + toRoman(holder.life) + "," : "") + " reached " + reachedText(record.day) + "." + erasLabel}
                     style={{"--row-height": rowHeight + "px"} as CSSProperties}>
+                    {shownEras.length > 0 && (
+                        <div aria-hidden="true" className="chronicle-eras">
+                            {shownEras.map(era => {
+                                const left = toX(eraStartDay(era))
+                                const right = Math.min(100, toX(eraEndDay(era)))
+                                return (
+                                    <span key={era.id} className={classNames("chronicle-era", era != eras[0] && "chronicle-era-later")}
+                                        style={{left: left + "%", width: (right - left) + "%"}}>
+                                        <span className="chronicle-era-label"><EraIcon size={12} />{era.name + " "}<span className="chronicle-era-year">{era.startYear}</span></span>
+                                    </span>
+                                )
+                            })}
+                        </div>
+                    )}
                     {newestFirst.map(span => (
                         <div key={span.life} className="chronicle-reach-row"
                             title={"Life " + toRoman(span.life) + ": " + endText(span, record) + ", " + (span.living ? "now in " : "reached ") + reachedText(span.ended)}>
@@ -157,6 +200,10 @@ export function Chronicle() {
                             <span className="chronicle-bar-track">
                                 <span className={classNames("chronicle-bar", span.living ? "chronicle-bar-now" : span.end == "evil" && "chronicle-bar-evil")}
                                     style={{width: toX(span.ended) + "%"}}></span>
+                                {laterEraParts(span, shownEras).map(part => (
+                                    <span key={part.id} className="chronicle-bar chronicle-bar-era"
+                                        style={{left: toX(part.from) + "%", width: (toX(part.to) - toX(part.from)) + "%"}}></span>
+                                ))}
                             </span>
                         </div>
                     ))}
@@ -177,6 +224,9 @@ export function Chronicle() {
                 <span><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar"></span>Life</span>
                 <span><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar-evil"></span>Ended in evil</span>
                 <span><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar-now"></span>This life</span>
+                {laterEras.map(era => (
+                    <span key={era.id}><span aria-hidden="true" className="chronicle-swatch chronicle-swatch-bar chronicle-bar-era"></span>{"Life, " + era.name}</span>
+                ))}
                 {calendar.seasons.map(season => (
                     <span key={season.id}><span aria-hidden="true" className="chronicle-swatch" style={{backgroundColor: "var(--pk-stripe-" + season.id + ")"}}></span>{season.name}</span>
                 ))}
@@ -194,7 +244,7 @@ export function Chronicle() {
                                 <strong>{"Life " + span.life + (span.living ? " · now" : "")}</strong>
                                 <span className="settings-note">{endText(span, record)}</span>
                             </span>
-                            <LifeStrip span={span} width={toX(span.ended)} />
+                            <LifeStrip span={span} width={toX(span.ended)} eras={laterEras.length > 0 ? shownEras.filter(era => eraStartDay(era) <= span.ended) : []} />
                             <span className={classNames("chronicle-years", span.living && "chronicle-years-now")}>{span.living ? "now" : reachedText(span.ended)}</span>
                         </div>
                     </li>
@@ -210,8 +260,9 @@ export function Chronicle() {
 }
 
 // A life's Summers and Winters, a lane above them marking each event it lived
-// through (rare ones in gold), and a line naming them
-function LifeStrip({span, width}: {span: LifeSpan, width: number}) {
+// through (rare ones in gold), a line naming them, and the eras it reached
+// (shown once there's a later era to tell apart)
+function LifeStrip({span, width, eras: reached}: {span: LifeSpan, width: number, eras: EraDefinition[]}) {
     const found = getLifeEvents(span)
     const length = Math.max(1, span.ended - span.woke)
     const label = plural(Math.floor((span.ended - span.woke) / DAYS_PER_YEAR), "year", "years") + " of Summers and Winters, from "
@@ -234,6 +285,13 @@ function LifeStrip({span, width}: {span: LifeSpan, width: number}) {
                 <span className="chronicle-strip" style={getStripStyle(span.woke, span.ended)}></span>
             </span>
             {summary && <span className="chronicle-events">{summary}</span>}
+            {reached.length > 0 && (
+                <span className="chronicle-era-chips">
+                    {reached.map(era => (
+                        <span key={era.id} className={classNames("chronicle-era-chip", era != eras[0] && "chronicle-era-later")}><EraIcon size={11} />{era.name}</span>
+                    ))}
+                </span>
+            )}
         </span>
     )
 }

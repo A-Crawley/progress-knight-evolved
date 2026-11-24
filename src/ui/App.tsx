@@ -10,6 +10,7 @@ import { Sidebar } from "./Sidebar.tsx"
 import { Header } from "./Header.tsx"
 import { PhoneHeader } from "./PhoneHeader.tsx"
 import { TaskTable } from "./TaskTable.tsx"
+import { EraBanner } from "./EraBanner.tsx"
 import { ShopTable } from "./ShopTable.tsx"
 import { AmuletTab } from "./AmuletTab.tsx"
 import { SettingsTab } from "./SettingsTab.tsx"
@@ -108,7 +109,7 @@ export function App() {
                         {" "}
                         <div className="panel tab-panel">
                             {" "}
-                            <Tab name="jobs" selected={selectedTab}><TaskTable kind="jobs" /></Tab>
+                            <Tab name="jobs" selected={selectedTab}><EraBanner /><TaskTable kind="jobs" /></Tab>
                             {" "}
                             <Tab name="skills" selected={selectedTab}><TaskTable kind="skills" /></Tab>
                             {" "}

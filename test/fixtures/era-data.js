@@ -23,7 +23,7 @@ export const testLedger = {id: "test_ledger", name: "Test ledger", category: "Mi
 
 // A category of the Test age, kept out of sight until a life reaches it
 export const testGuildmaster = {id: "test_guildmaster", name: "Test guildmaster", category: "Test guild", maxXp: 100, income: 20,
-    requires: [], tooltip: "Only in tests."}
+    availableFrom: TEST_ERA_YEAR, requires: [], tooltip: "Only in tests."}
 
 export const testAgeGlimpse = {id: "test_age_glimpse", name: "Test age glimpse", reveals: ["Test guild"], permanent: true,
     requires: [{year: TEST_ERA_YEAR}]}
