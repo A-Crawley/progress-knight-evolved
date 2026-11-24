@@ -271,6 +271,10 @@ const eventList = [
     {id: "blood_moon", name: "Blood Moon", plural: "Blood Moons", season: "winter", everyYears: 13, offset: 4,
         effects: [{label: "evil gain", effect: 1.5, boosts: [{stat: "evilGain"}]}],
         requires: "dark_magic", description: "Every 13 years. Evil embraced under a red moon runs deeper."},
+    // Age of Guilds: from 1300, in 1300, 1304, 1308, ...
+    {id: "guild_fair", name: "Guild Fair", plural: "Guild Fairs", season: "summer", everyYears: 4, offset: 0, from: 1300,
+        effects: [{label: "Common work pay", effect: 1.5, boosts: [{stat: "income", of: "Common work"}]}],
+        description: "Every 4 years from 1300. Every guild sets out its stalls, and trade is brisk."},
 ] as const satisfies readonly EventDefinition[]
 export const events: readonly EventDefinition[] = eventList
 
@@ -358,5 +362,5 @@ export type _SuccessorsExist = Expect<Successor, JobId | (typeof itemList)[numbe
 export type _BoostTargetsExist = Expect<BoostedTarget, BoostTarget>
 export type _UnlockedCategoriesExist = Expect<UnlockedCategory, Category>
 export type _EventSeasonsExist = Expect<(typeof eventList)[number]["season"], SeasonId>
-export type _EventUnlocksExist = Expect<(typeof eventList)[number]["requires"], (typeof unlockList)[number]["id"]>
+export type _EventUnlocksExist = Expect<Extract<(typeof eventList)[number], {requires: string}>["requires"], (typeof unlockList)[number]["id"]>
 export type _EventTargetsExist = Expect<Extract<EventBoost, {of: string}>["of"], BoostTarget>

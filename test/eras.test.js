@@ -445,3 +445,21 @@ test("in 1300 Book closes and passes to Printed tome; the Guild items and reside
         assert.equal(item.baseData.requires[0].coins, item.baseData.expense * 100, name)
     }
 })
+
+test("the Guild Fair raises Common work pay by half every fourth Summer from 1300, and is unseen before", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    const fairEvent = api.events.find(event => event.id == "guild_fair")
+    assert.deepEqual([1296, 1300, 1301, 1304].map(year => api.happensIn(fairEvent, year)), [false, true, false, true])
+    assert.ok(!api.getUpcomingEvents(0, 50).some(found => found.event.id == "guild_fair"), "not listed before any life reaches 1300")
+
+    const beggar = gameData.taskData["Beggar"]
+    goToYear(gameData, 1299)
+    game.fastTicks(1)
+    const before = beggar.getIncome()
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    assert.ok(api.getActiveEvents().some(found => found.event.id == "guild_fair"))
+    assert.equal(beggar.getIncome(), Math.round(before * 1.5))
+})
