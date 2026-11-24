@@ -540,6 +540,18 @@ export const MAX_CATCH_UP_MS = 20 * 1000
 // Real time (ms) that hasn't been turned into game steps yet
 export let unsteppedTime = 0
 
+// Called after each step that advanceGameTime runs. Only dev tools (the
+// playthrough recorder, src/dev/) watch the steps; the game never does.
+let stepObserver: (() => void) | null = null
+
+// Watches every step from now on; returns a function that stops watching
+export function observeSteps(observer: () => void): () => void {
+    stepObserver = observer
+    return () => {
+        if (stepObserver == observer) stepObserver = null
+    }
+}
+
 // Runs one game step for every step's worth of real time that has passed,
 // up to MAX_CATCH_UP_MS. Returns the number of steps run.
 export function advanceGameTime(elapsedMs: number): number {
@@ -554,6 +566,7 @@ export function advanceGameTime(elapsedMs: number): number {
     }
     for (let i = 0; i < steps; i++) {
         update()
+        stepObserver?.()
     }
     return steps
 }

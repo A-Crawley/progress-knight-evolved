@@ -49,3 +49,25 @@ test("time going backwards runs no steps", async () => {
     assert.equal(game.api.advanceGameTime(-1000), 0)
     assert.equal(game.api.advanceGameTime(50), 1)
 })
+
+test("a step observer sees each step after it runs, until it stops watching", async () => {
+    const game = await loadEngine()
+    const days = []
+    const stop = game.api.observeSteps(() => days.push(game.api.gameData.days))
+    assert.equal(game.api.advanceGameTime(150), 3)
+    assert.equal(days.length, 3)
+    assert.ok(days[0] < days[1] && days[1] < days[2], "each call comes after its own step")
+    assert.equal(days[2], game.api.gameData.days)
+    stop()
+    game.api.advanceGameTime(100)
+    assert.equal(days.length, 3)
+})
+
+test("watching the steps doesn't change them", async () => {
+    const watched = await loadEngine()
+    const plain = await loadEngine()
+    watched.api.observeSteps(() => {})
+    watched.api.advanceGameTime(5000)
+    plain.api.advanceGameTime(5000)
+    assert.equal(snapshot(watched), snapshot(plain))
+})
