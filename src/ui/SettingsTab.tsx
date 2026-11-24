@@ -3,7 +3,8 @@
 
 import { memo, useEffect, useRef, useState } from "react"
 import type { KeyboardEvent } from "react"
-import { clearSave, exportSave, secondsSinceSave, importSave } from "../game/save.ts"
+import { exportSave, secondsSinceSave } from "../game/save.ts"
+import { hardReset, importSave } from "./actions.ts"
 import { classNames } from "./classNames.ts"
 import { describeAge } from "./format.ts"
 import { useGameValue } from "./gameStore.ts"
@@ -99,13 +100,12 @@ export const SettingsTab = memo(function SettingsTab() {
     }
 
     function importGameData() {
+        // Reloads the page unless it fails
         const error = importSave(saveText)
         if (error) {
             setImportError(error)
             setShowImportError(true)
-            return
         }
-        location.reload()
     }
 
     function exportGameData() {
@@ -184,7 +184,7 @@ export const SettingsTab = memo(function SettingsTab() {
                         <div className="settings-actions" role="group" aria-label="Confirm hard reset">
                             <span className="settings-confirm">Are you sure?</span>
                             <button type="button" id="resetButton" className="quiet-button settings-danger-button"
-                                onClick={() => {clearSave(); location.reload()}}>Yes, reset</button>
+                                onClick={hardReset}>Yes, reset</button>
                             <button type="button" ref={cancelRef} className="quiet-button" onClick={() => setConfirming(false)}>Cancel</button>
                         </div>
                     ) : (

@@ -6,11 +6,12 @@ import { Fragment, memo, useRef } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, idsByName, jobCategories, skillCategories, tooltips } from "../game/data.ts"
 import { Job, Skill } from "../game/classes.ts"
-import { getInheritedXpMultiplier, getPredecessor, setSkillSkipped, setTask } from "../game/engine.ts"
+import { getInheritedXpMultiplier, getPredecessor } from "../game/engine.ts"
+import { selectTask, setSkillSkipped } from "./actions.ts"
 import { getEraRow } from "../game/eras.ts"
 import type { EraRow } from "../game/eras.ts"
 import { gameData } from "../game/state.ts"
-import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
+import { sameData, shallowEqual, useGameValue } from "./gameStore.ts"
 import { EmptyCoinParts, FormattedCoins } from "./CoinParts.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { RequiredRow, isCategoryHidden, isCategoryUnseen } from "./RequiredRow.tsx"
@@ -125,7 +126,7 @@ const TaskRow = memo(function TaskRow({name, categoryName}: {name: string, categ
                 {row.era.kind == "opens" && <OpensBar name={name} year={row.era.year} />}
                 {row.era.kind == "open" && <>
                 {/* A real button, so the keyboard can start the task too */}
-                <button type="button" className={classNames("progress-bar progressBar tooltip", longPress.shown && "tooltip-open")} aria-describedby={tooltipId} {...longPress.handlers} onClick={() => {setTask(name); requestRender()}}>
+                <button type="button" className={classNames("progress-bar progressBar tooltip", longPress.shown && "tooltip-open")} aria-describedby={tooltipId} {...longPress.handlers} onClick={() => selectTask(name)}>
                     {/* The track clips the sliding fill; the tooltip stays outside it */}
                     <span className="progress-track">
                         <span ref={fill} className={classNames("progress-fill progressFill", row.current && "current")}></span>

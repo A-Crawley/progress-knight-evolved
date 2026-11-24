@@ -3,12 +3,13 @@
 import type { CSSProperties } from "react"
 import { headerRowColors, jobBaseData, namesById, skills } from "../game/data.ts"
 import { nextWakeDay, reachedText } from "../game/history.ts"
-import { getEvilGain, getTaskById, isUnlocked, rebirthOne, rebirthTwo } from "../game/engine.ts"
+import { getEvilGain, getTaskById, isUnlocked } from "../game/engine.ts"
+import { rebirthOne, rebirthTwo } from "./actions.ts"
 import { daysToYears, getLifespan } from "../game/rules.ts"
 import type { Skill } from "../game/classes.ts"
 import type { TaskRequirementSpec } from "../game/types.ts"
 import { gameData } from "../game/state.ts"
-import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
+import { sameData, shallowEqual, useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
 import { format } from "./format.ts"
 import { PastLives } from "./PastLives.tsx"
@@ -104,7 +105,7 @@ export function AmuletTab() {
                         ))}
                     </div>
                     <button type="button" id="rebirthOneButton" className="amulet-cta"
-                        onClick={() => {rebirthOne(); requestRender()}}>Touch the eye</button>
+                        onClick={rebirthOne}>Touch the eye</button>
                     <p className="amulet-fine">
                         Resets coins, age, levels and items · <strong>you’ll wake at 14 in {wake}</strong>
                     </p>
@@ -134,7 +135,7 @@ export function AmuletTab() {
                         <strong className="amulet-throb">+<span id="evilGainDisplay">{evilGain}</span> evil</strong>
                     </div>
                     <button type="button" id="rebirthTwoButton" className="quiet-button amulet-evil-button"
-                        onClick={() => {rebirthTwo(); requestRender()}}>Embrace evil</button>
+                        onClick={rebirthTwo}>Embrace evil</button>
                 </section>
 
                 {/* Kept back until magic has been glimpsed, as it talks about it */}

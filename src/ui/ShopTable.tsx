@@ -4,9 +4,9 @@
 import { Fragment, memo } from "react"
 import type { CSSProperties } from "react"
 import { headerRowColors, itemCategories, tooltips } from "../game/data.ts"
-import { setMisc, setProperty } from "../game/engine.ts"
+import { selectProperty, toggleMisc } from "./actions.ts"
 import { gameData } from "../game/state.ts"
-import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
+import { sameData, shallowEqual, useGameValue } from "./gameStore.ts"
 import { FormattedCoins } from "./CoinParts.tsx"
 import { RequiredRow, isCategoryHidden, isCategoryUnseen } from "./RequiredRow.tsx"
 import { classNames, removeSpaces } from "./classNames.ts"
@@ -104,7 +104,7 @@ const ItemRow = memo(function ItemRow({name, isProperty, categoryName}: {name: s
                 {era.kind == "opens" && <OpensBar name={name} year={era.year} />}
                 {era.kind == "open" &&
                 <button type="button" className={classNames("item-button tooltip", longPress.shown && "tooltip-open")} disabled={!affordable} aria-pressed={isActive} aria-describedby={tooltipId} {...longPress.handlers}
-                    onClick={() => {isProperty ? setProperty(name) : setMisc(name); requestRender()}}>
+                    onClick={() => isProperty ? selectProperty(name) : toggleMisc(name)}>
                     <span className="name">{name}</span>
                     {/* Phones show the tick inside the button (hidden from 640px) */}
                     {era.kind == "open" && era.closesIn !== null && <span className="closes-hint">{"Closes in " + era.closesIn}</span>}

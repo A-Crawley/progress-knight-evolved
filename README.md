@@ -17,14 +17,24 @@ The game is built with [Vite](https://vite.dev/). You need Node.js 22 or later.
 - `npm run typecheck`: TypeScript type checking
 - `npm run build`: build the site into `dist/`; `npm run preview` serves the build
 
+#### Recording a playthrough
+`npm run dev:record` runs the game on http://localhost:5180/progress-knight-evolved/ and records how you play, so the play can be compared with the bot's. Only this command includes the recorder: `npm run dev`, the tests and the built site never do. It makes no network requests.
+
+- **The indicator.** While recording, a magenta frame runs round the page, a **DEV · ● REC** badge sits in the bottom-right corner (above the tab bar on phones), and the tab's title starts with `[REC]`. Pausing the recording from the badge turns all three grey (`[REC ⏸]`). Reloading the page starts recording again.
+- **Notes.** Press **M** (or Note in the badge's menu) to mark the moment: bored, confused, stuck, fun or waiting, with optional text. Enter saves, Escape cancels.
+- **What's recorded.** Each of your actions with the save from just before it; what automation, era closings and bankruptcy change on their own, with the cause; unlocks; the end of each life; your notes; tab and tooltip use; when the page is hidden, unfocused or idle; and a heartbeat with a snapshot and a save every 30 seconds (every 5 minutes while hidden). Every event has the real time, the active steps (game steps while the game is moving, so not while paused or dead) and the character's age in days. Each session (page load) also records the commit and whether there were uncommitted changes. The event types are in `src/dev/recording-types.ts`.
+- **Export.** Recordings are kept in the browser (IndexedDB) for that address. Export JSONL in the badge's menu downloads every session, one event per line; the badge reminds you once 3 hours have passed since the last export. Delete clears them.
+- Hot reload is off in record mode: reload the page to pick up a code change.
+
 #### How it's organised
 - `src/game/`: the game itself, in TypeScript, with no access to the page.
   - `data.ts`: every job, skill, item and unlock. The format is documented at the top of the file and typed in `types.ts`, so `npm run typecheck` catches a misspelt id, stat or requirement.
   - `state.ts`: the game state, one plain object.
   - `engine.ts` (with `rules.ts` and `classes.ts`): formulas, game steps, rebirths and automation.
   - `save.ts`: saving, loading, import/export and upgrading saves from older versions.
-- `src/ui/`: the page, a React app. The game state stays outside React; `gameStore.ts` tells the components to render it again about 10 times a second and after every player action. Player actions call the engine's functions, and components never change the game state while rendering.
+- `src/ui/`: the page, a React app. The game state stays outside React; `gameStore.ts` tells the components to render it again about 10 times a second and after every player action. Player actions go through `actions.ts`, which calls the engine's functions, and components never change the game state while rendering.
 - `src/main.tsx`: starts the game, the page and the timers. `backgroundTimer.ts` keeps the game running in a background tab.
+- `src/dev/`: the playthrough recorder, loaded only by `npm run dev:record`. It sees the game through `observeActions` (`src/ui/actions.ts`, where every player action goes) and `observeSteps` (`engine.ts`).
 
 #### Tests
 - `test/*.test.js`: the game logic, saves and the page in jsdom. `golden-run.test.js` plays two whole lives and compares them with a recording (`test/fixtures/golden-run.json`), so any change to game balance fails it.

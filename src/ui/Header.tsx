@@ -5,12 +5,13 @@
 
 import { useRef } from "react"
 import { daysToYears, getGameSpeed, getLifespan } from "../game/rules.ts"
-import { isLifeOver, setPause } from "../game/engine.ts"
+import { isLifeOver } from "../game/engine.ts"
+import { togglePause } from "./actions.ts"
 import { formatDate, getWorldDay, toDate } from "../game/calendar.ts"
 import { getActiveEvents } from "../game/events.ts"
 import type { SeasonId } from "../game/data.ts"
 import { gameData } from "../game/state.ts"
-import { requestRender, sameData, useGameValue } from "./gameStore.ts"
+import { sameData, useGameValue } from "./gameStore.ts"
 import { classNames } from "./classNames.ts"
 import { getLifeShare } from "./life.ts"
 import { useFillBar } from "./fillBar.ts"
@@ -62,7 +63,7 @@ export function Header() {
                 </div>
                 <div className="speed-block">
                     <span className="speed-text">{speed}</span>
-                    <button type="button" id="pauseButton" className="w3-button button header-pause" onClick={() => {setPause(); requestRender()}}>
+                    <button type="button" id="pauseButton" className="w3-button button header-pause" onClick={togglePause}>
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             {paused ? <path d="M7 5l12 7-12 7z" /> : <path d="M9 5v14M15 5v14" />}
                         </svg>

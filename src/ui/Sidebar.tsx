@@ -7,9 +7,9 @@ import type { Job, Skill } from "../game/classes.ts"
 import { gameData } from "../game/state.ts"
 import { items, skills } from "../game/data.ts"
 import { getSourceEffect } from "../game/rules.ts"
-import { getExpense, getHappiness, getIncome, getNet, getTaskById, isUnlocked,
-    setAutoLearn, setAutoPromote, setTimeWarping } from "../game/engine.ts"
-import { requestRender, sameData, shallowEqual, useGameValue } from "./gameStore.ts"
+import { getExpense, getHappiness, getIncome, getNet, getTaskById, isUnlocked } from "../game/engine.ts"
+import { setAutoLearn, setAutoPromote, toggleTimeWarp } from "./actions.ts"
+import { sameData, shallowEqual, useGameValue } from "./gameStore.ts"
 import { FormattedCoins } from "./CoinParts.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { classNames } from "./classNames.ts"
@@ -144,7 +144,7 @@ function Stats() {
             <div id="timeWarping" className={classNames("stat", !stats.timeWarpingShown && "hidden")}>
                 <span className="stat-line"><span className="stat-value" id="timeWarpingDisplay">{stats.timeWarping}</span> <span className="stat-name stat-time">time warping</span></span>
                 <span className="card-note">On game speed</span>
-                <button type="button" id="timeWarpingButton" className="w3-button button warp-button" onClick={() => {setTimeWarping(); requestRender()}}>
+                <button type="button" id="timeWarpingButton" className="w3-button button warp-button" onClick={toggleTimeWarp}>
                     {stats.warping ? "Disable warp" : "Enable warp"}
                 </button>
             </div>
