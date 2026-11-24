@@ -3116,3 +3116,150 @@ button.item-button .closes-hint {
         padding-bottom: var(--pk-space-1);
     }
 }
+
+/* The era banner at the top of the Jobs tab, once per era a life enters */
+.era-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--pk-space-5);
+    margin-bottom: var(--pk-space-4);
+    padding: var(--pk-space-5) var(--pk-space-5) var(--pk-space-5) 28px;
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-era-wash);
+}
+
+.era-banner-crest {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-era-soft);
+    color: var(--pk-era);
+}
+
+.era-banner-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--pk-space-2);
+}
+
+.era-banner-kicker {
+    font-size: var(--pk-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--pk-era);
+}
+
+.era-banner-title {
+    margin: 0;
+    font-family: var(--pk-font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--pk-text);
+}
+
+.era-banner-text {
+    margin: 0;
+    max-width: 640px;
+    color: var(--pk-text-secondary);
+}
+
+.era-handoffs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pk-space-2);
+    margin: var(--pk-space-1) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.era-handoff {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pk-space-2);
+    padding: 6px 10px;
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-panel);
+    font-size: var(--pk-text-xs);
+}
+
+.era-handoff-from,
+.era-handoff svg {
+    color: var(--pk-text-muted);
+}
+
+.era-handoff strong {
+    font-weight: 600;
+    color: var(--pk-text);
+}
+
+.era-handoff-bonus {
+    font-weight: 600;
+    color: var(--pk-gain-text);
+}
+
+.era-banner-button {
+    flex-shrink: 0;
+    height: 40px;
+    padding: 0 var(--pk-space-4);
+    border: 0;
+    border-radius: var(--pk-radius);
+    background-color: var(--pk-era);
+    color: var(--pk-on-era);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.era-banner-button:hover {
+    background-color: color-mix(in srgb, var(--pk-era) 85%, var(--pk-text));
+}
+
+@keyframes era-banner-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes era-pennant-wave {
+    0%, 100% { transform: skewY(0); }
+    30% { transform: skewY(-8deg); }
+    60% { transform: skewY(5deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .era-banner { animation: era-banner-in 0.4s ease-out; }
+    .era-banner-pennant { animation: era-pennant-wave 0.6s ease-in-out 0.4s; transform-origin: left center; }
+}
+
+@media (max-width: 639px) {
+    .era-banner {
+        flex-wrap: wrap;
+        gap: var(--pk-space-3);
+        padding: var(--pk-space-4);
+    }
+
+    .era-banner-crest {
+        width: 40px;
+        height: 40px;
+    }
+
+    .era-banner-title {
+        font-size: 22px;
+    }
+
+    .era-handoffs {
+        flex-direction: column;
+    }
+
+    .era-banner-button {
+        width: 100%;
+        height: var(--pk-touch);
+    }
+}

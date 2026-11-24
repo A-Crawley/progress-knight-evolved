@@ -5,6 +5,7 @@
 
 import { test } from "vitest"
 import assert from "node:assert/strict"
+import { fireEvent, screen } from "@testing-library/react"
 import { renderComponent } from "../helpers/react.js"
 import { withTestEra } from "../fixtures/era-data.js"
 
@@ -166,4 +167,38 @@ test("in the Shop, a closed item is muted with its successor, which can be bough
     const ledger = row("Test ledger")
     assert.ok(!ledger.classList.contains("hidden"))
     assert.ok(ledger.querySelector("button.item-button"))
+})
+
+// ---------------------------------------------------------------------------
+// The era banner
+
+const banner = () => document.querySelector(".era-banner")
+
+test("no banner in the first era", async () => {
+    await eraGame("EraBanner.tsx", "EraBanner", {}, { year: 1225 })
+    assert.equal(banner(), null)
+})
+
+test("entering a later era shows a banner with what closed and what took its place, until Onward", async () => {
+    const game = await eraGame("EraBanner.tsx", "EraBanner", {}, { year: 1230 })
+    assert.equal(squash(banner().querySelector(".era-banner-kicker")), "A new era · Summer 1, 1230")
+    assert.equal(squash(banner().querySelector("h2")), "The Test age")
+    assert.ok(banner().classList.contains("fx-anim"), "its entrance follows the effects setting")
+    assert.deepEqual([...banner().querySelectorAll(".era-handoff")].map(squash),
+        ["Test trader Test guild trader ×4.2 XP", "Test scroll Test ledger"])
+    assert.equal(document.querySelector(".era-banner-slot").getAttribute("aria-live"), "polite")
+
+    fireEvent.click(screen.getByText("Onward"))
+    assert.equal(banner(), null)
+    assert.deepEqual(Array.from(game.gameData.eraBannersDismissed), ["test_age"])
+    game.ticks(5)
+    assert.equal(banner(), null, "dismissed for the rest of the life")
+})
+
+test("the banner leaves out what this life never unlocked", async () => {
+    // The Test trader needs Beggar 5: without it, only the Test scroll is listed
+    const game = await eraGame("EraBanner.tsx", "EraBanner", {}, { year: 1230, traderLevel: 0 })
+    game.gameData.requirements["Test trader"].completed = false
+    game.rerender()
+    assert.deepEqual([...banner().querySelectorAll(".era-handoff")].map(squash), ["Test scroll Test ledger"])
 })
