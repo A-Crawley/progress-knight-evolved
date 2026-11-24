@@ -9,10 +9,11 @@ import type { LifeBest, LifeEnd } from "./state.ts"
 import { updateSpeed, getSourceEffect, applyStatBoosts, applySpeed, daysToYears, getLifespan } from "./rules.ts"
 import { getEventEffect } from "./events.ts"
 import { getWorldDay } from "./calendar.ts"
-import { Job, Skill, Item, TaskRequirement, CoinRequirement, AgeRequirement, EvilRequirement } from "./classes.ts"
+import { isClosed, isOpen, checkEraFields } from "./eras.ts"
+import { Job, Skill, Item, TaskRequirement, CoinRequirement, AgeRequirement, EvilRequirement, YearRequirement } from "./classes.ts"
 import type { Requirement } from "./classes.ts"
 import type { AnyDefinition, Boost, JobDefinition, SkillDefinition, ItemDefinition, TargetedStat,
-    TaskRequirementSpec, CoinRequirementSpec, AgeRequirementSpec, EvilRequirementSpec } from "./types.ts"
+    TaskRequirementSpec, CoinRequirementSpec, AgeRequirementSpec, EvilRequirementSpec, YearRequirementSpec } from "./types.ts"
 
 export let skillWithLowestMaxXp: Skill | null = null
 
@@ -45,6 +46,7 @@ function addMultipliers() {
         if (task instanceof Job) {
             task.incomeMultipliers = [task.getLevelMultiplier.bind(task)]
             task.incomeMultipliers.push(...getBoostEffects("income", task))
+            if (getPredecessor(task)) task.xpMultipliers.push(() => getInheritedXpMultiplier(task))
         }
     }
 
@@ -153,26 +155,76 @@ export function setSkillSkipped(skillName: string, skipped: boolean): void {
     skipped ? gameData.automation.skippedSkills.add(id) : gameData.automation.skippedSkills.delete(id)
 }
 
+// A job or item that is closed, or whose era hasn't come, can't be started
 export function setTask(taskName: string): void {
     const task = gameData.taskData[taskName]
-    task instanceof Job ? gameData.currentJob = task : gameData.currentSkill = task
+    if (task instanceof Job) {
+        if (isOpen(task.baseData)) gameData.currentJob = task
+    } else {
+        gameData.currentSkill = task
+    }
 }
 
 export function setProperty(propertyName: string): void {
     const property = gameData.itemData[propertyName]
-    gameData.currentProperty = property
+    if (isOpen(property.baseData)) gameData.currentProperty = property
 }
 
+// Switches a misc item on or off. Only an open one can be switched on.
 export function setMisc(miscName: string): void {
     const misc = gameData.itemData[miscName]
     if (gameData.currentMisc.includes(misc)) {
-        for (let i = 0; i < gameData.currentMisc.length; i++) {
-            if (gameData.currentMisc[i] == misc) {
-                gameData.currentMisc.splice(i, 1)
-            }
-        }
-    } else {
+        removeMisc(misc)
+    } else if (isOpen(misc.baseData)) {
         gameData.currentMisc.push(misc)
+    }
+}
+
+function removeMisc(misc: Item): void {
+    for (let i = gameData.currentMisc.length - 1; i >= 0; i--) {
+        if (gameData.currentMisc[i] == misc) gameData.currentMisc.splice(i, 1)
+    }
+}
+
+// The job whose successor this is, if any
+export function getPredecessor(job: Job): Job | undefined {
+    const predecessor = jobs.find(definition => definition.successor == job.baseData.id)
+    return predecessor ? gameData.taskData[predecessor.name] as Job : undefined
+}
+
+// A successor learns faster for the highest level its predecessor ever
+// reached, this life included: 1 + that level / 10
+export function getInheritedXpMultiplier(job: Job): number {
+    const predecessor = getPredecessor(job)
+    if (!predecessor) return 1
+    return 1 + Math.max(predecessor.maxLevel, predecessor.level) / 10
+}
+
+function isUsable(job: Job): boolean {
+    return isOpen(job.baseData) && gameData.requirements[job.name].isCompleted()
+}
+
+// Where you work once your job closes: its successor if that is unlocked,
+// else your highest open job in the category, else the category's first
+export function getJobAfterClosing(job: Job): Job {
+    const successor = getTaskById(job.baseData.successor)
+    if (successor instanceof Job && isUsable(successor)) return successor
+    const category = jobCategories[job.baseData.category]
+    for (let i = category.length - 1; i >= 0; i--) {
+        const candidate = gameData.taskData[category[i]] as Job
+        if (isUsable(candidate)) return candidate
+    }
+    return gameData.taskData[category[0]] as Job
+}
+
+// When an era closes your job or an item in use, move on: the job passes
+// to the one after it (getJobAfterClosing) and the item switches off, so
+// its upkeep stops. Worked out from the date each step, so it also holds
+// after loading a save.
+function applyClosings(): void {
+    if (isClosed(gameData.currentJob.baseData)) gameData.currentJob = getJobAfterClosing(gameData.currentJob)
+    for (const misc of [...gameData.currentMisc]) {
+        if (isClosed(misc.baseData)) removeMisc(misc)
     }
 }
 
@@ -239,13 +291,18 @@ function getNextEntity<T>(data: Record<string, T>, categoryType: Record<string, 
     return nextEntity
 }
 
+// Moves to the next job in the category once it's unlocked. A closed job
+// leads on to its successor (or, without one, to the job after it); a job
+// whose era hasn't come stops the promotion.
 export function autoPromote() {
     if (!gameData.automation.autoPromote) return
-    const nextEntity = getNextEntity(gameData.taskData, jobCategories, gameData.currentJob.name)
-    if (nextEntity == null) return
-    const requirement = gameData.requirements[nextEntity.name]
     // The next entity in a job category is a job
-    if (requirement.isCompleted()) gameData.currentJob = nextEntity as Job
+    let next = getNextEntity(gameData.taskData, jobCategories, gameData.currentJob.name) as Job | null
+    while (next && isClosed(next.baseData)) {
+        next = next.baseData.successor ? getTaskById(next.baseData.successor) as Job : getNextEntity(gameData.taskData, jobCategories, next.name) as Job | null
+    }
+    if (next == null || next == gameData.currentJob) return
+    if (isUsable(next)) gameData.currentJob = next
 }
 
 function checkSkillSkipped(skill: Skill): boolean {
@@ -328,11 +385,13 @@ export function createRequirement(definition: AnyDefinition): Requirement {
     if (types.has("coins")) return new CoinRequirement((specs as readonly CoinRequirementSpec[]).map(spec => ({requirement: spec.coins})))
     if (types.has("age")) return new AgeRequirement((specs as readonly AgeRequirementSpec[]).map(spec => ({requirement: spec.age})))
     if (types.has("evil")) return new EvilRequirement((specs as readonly EvilRequirementSpec[]).map(spec => ({requirement: spec.evil})))
+    if (types.has("year")) return new YearRequirement((specs as readonly YearRequirementSpec[]).map(spec => ({requirement: spec.year})))
     throw new Error(definition.name + " has an unknown kind of requirement")
 }
 
 // Builds the game state for a new game, before any save is applied
 export function initGameData() {
+    checkEraFields()
     createData(gameData.taskData, jobBaseData)
     createData(gameData.taskData, skillBaseData)
     createData(gameData.itemData, itemBaseData) 
@@ -445,6 +504,7 @@ export function isLifeOver() {
 
 export function update() {
     increaseDays()
+    applyClosings()
     autoPromote()
     autoLearn()
     doCurrentTask(gameData.currentJob)

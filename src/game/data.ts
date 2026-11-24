@@ -2,7 +2,8 @@
 // id that saves can refer to even if its display name changes.
 //
 // requires: what must be reached before it is shown and can be used. Task
-//   requirements refer to other jobs/skills by id.
+//   requirements refer to other jobs/skills by id. The others are a number
+//   of coins, an age, an amount of evil, or a world year ({year: 1300}).
 // effectCurve (skills, optional): replaces the default effect of
 //   1 + effect * level.
 //   {type: "log", base}: 1 + log_base(level + 1)
@@ -22,7 +23,7 @@
 // they refer to are checked against the ids that exist (see the end of
 // this file), so a typo fails npm run typecheck.
 
-import type { JobDefinition, SkillDefinition, ItemDefinition, UnlockDefinition, SeasonDefinition, CalendarDefinition, EventDefinition } from "./types.ts"
+import type { JobDefinition, SkillDefinition, ItemDefinition, UnlockDefinition, SeasonDefinition, CalendarDefinition, EventDefinition, EraDefinition } from "./types.ts"
 
 function definitionsByName<T extends {name: string}>(definitions: readonly T[]): Record<string, T> {
     const byName: Record<string, T> = {}
@@ -234,26 +235,47 @@ export const events: readonly EventDefinition[] = eventList
 // Days at the start of an event's season when it is shown as just begun
 export const eventNewDays = 20
 
+// Eras, in the order they start (see EraDefinition in types.ts and eras.ts).
+// The first starts with the calendar, so every date is in an era. Later
+// eras close jobs and items (closesIn) and open their successors
+// (availableFrom); a permanent unlock with {year} and reveals shows an
+// era's categories in every life once any life has reached it.
+const eraList = [
+    {id: "age_of_fiefs", name: "Age of Fiefs", startYear: 1200,
+        description: "Lords hold the land, and every trade answers to one of them."},
+] as const satisfies readonly EraDefinition[]
+export const eras: readonly EraDefinition[] = eraList
+
 // What a new life starts with (ids)
 export const startingItems: {readonly job: JobId, readonly skill: SkillId, readonly property: PropertyId} = {job: "beggar", skill: "concentration", property: "homeless"}
 
-// Id <-> display name for every job, skill, item and unlock. Prototype-free
-// so lookups of untrusted keys (e.g. from a save) can't hit Object methods.
-export const namesById: Record<string, string> = Object.create(null)
-export const idsByName: Record<string, string> = Object.create(null)
-for (const definition of [...jobs, ...skills, ...items, ...unlocks]) {
-    namesById[definition.id] = definition.name
-    idsByName[definition.name] = definition.id
+// The lookup tables the rest of the game uses, built from the definitions.
+// Exported so tests can build the same tables for their own game data.
+export function deriveLookups(jobs: readonly JobDefinition[], skills: readonly SkillDefinition[], items: readonly ItemDefinition[], unlocks: readonly UnlockDefinition[]) {
+    // Id <-> display name for every job, skill, item and unlock. Prototype-free
+    // so lookups of untrusted keys (e.g. from a save) can't hit Object methods.
+    const namesById: Record<string, string> = Object.create(null)
+    const idsByName: Record<string, string> = Object.create(null)
+    for (const definition of [...jobs, ...skills, ...items, ...unlocks]) {
+        namesById[definition.id] = definition.name
+        idsByName[definition.name] = definition.id
+    }
+
+    // Entity name -> tooltip text
+    const tooltips: Record<string, string> = {}
+    for (const definition of [...jobs, ...skills, ...items]) {
+        tooltips[definition.name] = definition.tooltip
+    }
+
+    return {
+        namesById, idsByName, tooltips,
+        jobBaseData: definitionsByName(jobs), jobCategories: namesByCategory(jobs),
+        skillBaseData: definitionsByName(skills), skillCategories: namesByCategory(skills),
+        itemBaseData: definitionsByName(items), itemCategories: namesByCategory(items),
+    }
 }
 
-export const jobBaseData = definitionsByName(jobs)
-export const jobCategories = namesByCategory(jobs)
-
-export const skillBaseData = definitionsByName(skills)
-export const skillCategories = namesByCategory(skills)
-
-export const itemBaseData = definitionsByName(items)
-export const itemCategories = namesByCategory(items)
+export const {namesById, idsByName, tooltips, jobBaseData, jobCategories, skillBaseData, skillCategories, itemBaseData, itemCategories} = deriveLookups(jobs, skills, items, unlocks)
 
 // Category -> its colour, as a design token (css/tokens.css, css/dark.css)
 export const headerRowColors: Record<Category, string> = {
@@ -266,12 +288,6 @@ export const headerRowColors: Record<Category, string> = {
     "Dark magic": "var(--pk-cat-dark-magic)",
     "Properties": "var(--pk-cat-properties)",
     "Misc": "var(--pk-cat-misc)",
-}
-
-// Entity name -> tooltip text
-export const tooltips: Record<string, string> = {}
-for (const definition of [...jobs, ...skills, ...items]) {
-    tooltips[definition.name] = definition.tooltip
 }
 
 // Ids and names that exist in the data above

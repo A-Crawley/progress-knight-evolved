@@ -13,11 +13,13 @@ export type Boost =
 
 // One condition for unlocking something. A definition's conditions are all
 // of the same kind.
-export type TaskRequirementSpec = {readonly task: string, readonly level: number, readonly coins?: never, readonly age?: never, readonly evil?: never}
-export type CoinRequirementSpec = {readonly coins: number, readonly task?: never, readonly level?: never, readonly age?: never, readonly evil?: never}
-export type AgeRequirementSpec = {readonly age: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly evil?: never}
-export type EvilRequirementSpec = {readonly evil: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly age?: never}
-export type RequirementSpec = TaskRequirementSpec | CoinRequirementSpec | AgeRequirementSpec | EvilRequirementSpec
+export type TaskRequirementSpec = {readonly task: string, readonly level: number, readonly coins?: never, readonly age?: never, readonly evil?: never, readonly year?: never}
+export type CoinRequirementSpec = {readonly coins: number, readonly task?: never, readonly level?: never, readonly age?: never, readonly evil?: never, readonly year?: never}
+export type AgeRequirementSpec = {readonly age: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly evil?: never, readonly year?: never}
+export type EvilRequirementSpec = {readonly evil: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly age?: never, readonly year?: never}
+// The world year (calendar.ts) a life has reached
+export type YearRequirementSpec = {readonly year: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly age?: never, readonly evil?: never}
+export type RequirementSpec = TaskRequirementSpec | CoinRequirementSpec | AgeRequirementSpec | EvilRequirementSpec | YearRequirementSpec
 
 // Replaces a skill's default effect of 1 + effect * level
 export type EffectCurve =
@@ -36,7 +38,18 @@ interface TaskDefinition extends Definition {
     readonly tooltip: string
 }
 
-export interface JobDefinition extends TaskDefinition {
+// Jobs and items can belong to eras (eras.ts). Each is a world year:
+// availableFrom: it can't be used before this year
+// closesIn: from this year it can't be used for the rest of the life
+// successor (with closesIn): the job or item that takes its place, by id;
+//   it must open (availableFrom) in the year this one closes
+interface EraFields {
+    readonly availableFrom?: number
+    readonly closesIn?: number
+    readonly successor?: string
+}
+
+export interface JobDefinition extends TaskDefinition, EraFields {
     readonly income: number
 }
 
@@ -47,7 +60,8 @@ export interface SkillDefinition extends TaskDefinition {
     readonly boosts: readonly Boost[]
 }
 
-export interface ItemDefinition extends Definition {
+// Properties never close (checked when the game starts)
+export interface ItemDefinition extends Definition, EraFields {
     readonly category: string
     readonly expense: number
     readonly effect: number
@@ -104,6 +118,15 @@ export interface EventDefinition {
     readonly effects: readonly EventEffect[]
     // An unlock's id: until it is reached the event has no effect and isn't shown
     readonly requires?: string
+    readonly description: string
+}
+
+// An age of the world, from the first day of startYear until the next era
+// starts. Eras are listed in the order they start.
+export interface EraDefinition {
+    readonly id: string
+    readonly name: string
+    readonly startYear: number
     readonly description: string
 }
 
