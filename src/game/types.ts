@@ -38,7 +38,18 @@ interface TaskDefinition extends Definition {
     readonly tooltip: string
 }
 
-export interface JobDefinition extends TaskDefinition {
+// Jobs and items can belong to eras (eras.ts). Each is a world year:
+// availableFrom: it can't be used before this year
+// closesIn: from this year it can't be used for the rest of the life
+// successor (with closesIn): the job or item that takes its place, by id;
+//   it must open (availableFrom) in the year this one closes
+interface EraFields {
+    readonly availableFrom?: number
+    readonly closesIn?: number
+    readonly successor?: string
+}
+
+export interface JobDefinition extends TaskDefinition, EraFields {
     readonly income: number
 }
 
@@ -49,7 +60,8 @@ export interface SkillDefinition extends TaskDefinition {
     readonly boosts: readonly Boost[]
 }
 
-export interface ItemDefinition extends Definition {
+// Properties never close (checked when the game starts)
+export interface ItemDefinition extends Definition, EraFields {
     readonly category: string
     readonly expense: number
     readonly effect: number
