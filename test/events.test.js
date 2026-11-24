@@ -21,7 +21,7 @@ test("events come round every so many years from the epoch, before it too", asyn
     assert.deepEqual(years("hard_winter", 1190, 1211), [1193, 1198, 1203, 1208])
     assert.deepEqual(years("arcane_conjunction", 1190, 1215), [1191, 1198, 1205, 1212])
     assert.deepEqual(years("blood_moon", 1180, 1230), [1191, 1204, 1217])
-    assert.deepEqual(game.api.events.map(found => game.api.isRare(found)), [false, false, true, true])
+    assert.deepEqual(game.api.events.map(found => game.api.isRare(found)), [false, false, true, true, false])
 })
 
 test("an event runs for the whole of its season", async () => {

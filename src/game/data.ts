@@ -54,7 +54,15 @@ const jobList = [
     {id: "blacksmith", name: "Blacksmith", category: "Common work", maxXp: 800, income: 80, requires: [{task: "strength", level: 30}, {task: "miner", level: 10}],
         tooltip: "Smelt ores and carefully forge weapons for the military. A respectable and OK paying commoner job."},
     {id: "merchant", name: "Merchant", category: "Common work", maxXp: 1600, income: 150, requires: [{task: "bargaining", level: 50}, {task: "blacksmith", level: 10}],
+        closesIn: 1300, successor: "guild_merchant",
         tooltip: "Travel from town to town, bartering fine goods. The job pays decently well and is a lot less manually-intensive."},
+    // Age of Guilds
+    {id: "guild_merchant", name: "Guild merchant", category: "Common work", maxXp: 4000, income: 400, requires: [{task: "merchant", level: 10}],
+        availableFrom: 1300,
+        tooltip: "Trade under the guild's charter. Better prices and safer roads, though the guild takes its cut of every sale."},
+    {id: "banker", name: "Banker", category: "Common work", maxXp: 20000, income: 1500, requires: [{task: "guild_merchant", level: 10}, {task: "accounting", level: 50}],
+        availableFrom: 1300,
+        tooltip: "Lend the guilds' gold to lords and kings at a handsome rate. Other people's coin does most of the work."},
 
     // Military
     {id: "squire", name: "Squire", category: "Military", maxXp: 100, income: 5, requires: [{task: "strength", level: 5}],
@@ -69,6 +77,10 @@ const jobList = [
         tooltip: "Utilising your unmatched combat ability, slaughter enemies effortlessly. Most footmen in the military would never be able to acquire such a well paying job like this."},
     {id: "elite_knight", name: "Elite knight", category: "Military", maxXp: 7500000, income: 3000, requires: [{task: "strength", level: 300}, {task: "veteran_knight", level: 10}],
         tooltip: "Obliterate squadrons of enemy soldiers in one go with extraordinary proficiency, while equipped with the finest gear. Such a feared unit on the battlefield is paid extremely well."},
+    // Age of Guilds
+    {id: "knight_commander", name: "Knight-commander", category: "Military", maxXp: 2000000, income: 6000, requires: [{task: "battle_tactics", level: 300}, {task: "elite_knight", level: 10}],
+        availableFrom: 1300,
+        tooltip: "Lead a chartered company of knights, paid by the guilds to keep their roads and fairs safe. Steel and coin answer to you now."},
     {id: "holy_knight", name: "Holy knight", category: "Military", maxXp: 40000000, income: 15000, requires: [{task: "mana_control", level: 500}, {task: "elite_knight", level: 10}],
         tooltip: "Collapse entire armies in mere seconds with your magically imbued blade. The handful of elite knights who attain this level of power are showered with coins."},
     {id: "legendary_knight", name: "Legendary knight", category: "Military", maxXp: 150000000, income: 50000, requires: [{task: "mana_control", level: 1000}, {task: "battle_tactics", level: 1000}, {task: "holy_knight", level: 10}],
@@ -132,6 +144,15 @@ const skillList = [
         tooltip: "Grow and culture the evil within you through the sacrifice of other living beings, drastically increasing evil gain."},
     {id: "demons_wealth", name: "Demon's wealth", category: "Dark magic", maxXp: 100, effect: 0.002, description: "Job pay", boosts: [{stat: "income", of: "jobs"}], requires: [{evil: 500}],
         tooltip: "Through the means of dark magic, multiply the raw matter of the coins you receive from your job."},
+
+    // Letters (Age of Guilds). Each skill's first requirement is the year or
+    // another Letters skill, so none can be learnt before the era.
+    {id: "literacy", name: "Literacy", category: "Letters", maxXp: 100, effect: 0.01, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{year: 1300}],
+        tooltip: "Learn to read the books the printers and guild clerks now turn out by the cartload. Everything else comes a little easier."},
+    {id: "accounting", name: "Accounting", category: "Letters", maxXp: 100, effect: -0.01, description: "Expenses", effectCurve: {type: "logReduction", base: 7, divisor: 10, minimum: 0.1}, boosts: [{stat: "expense", of: "items"}], requires: [{task: "literacy", level: 20}, {task: "bargaining", level: 50}],
+        tooltip: "Keep double-entry books like the guild masters do, and find where every coin of upkeep is going."},
+    {id: "rhetoric", name: "Rhetoric", category: "Letters", maxXp: 100, effect: 0.01, description: "Common work pay", boosts: [{stat: "income", of: "Common work"}], requires: [{task: "literacy", level: 30}],
+        tooltip: "Argue a price up and a contract through. A way with words pays well in the market square."},
 ] as const satisfies readonly SkillDefinition[]
 export const skills: readonly SkillDefinition[] = skillList
 
@@ -147,6 +168,10 @@ const itemList = [
         tooltip: "Structured with a timber frame and a thatched roof. Provides decent living conditions for a fair price."},
     {id: "house", name: "House", category: "Properties", expense: 3000, effect: 6, requires: [{coins: 300000}],
         tooltip: "A building formed from stone bricks and sturdy timber, which contains a few rooms. Although quite expensive, it is a comfortable abode."},
+    // Age of Guilds
+    {id: "guildhall_residence", name: "Guildhall residence", category: "Properties", expense: 10000, effect: 9, requires: [{coins: 1000000}],
+        availableFrom: 1300,
+        tooltip: "Rooms above the guildhall, given to members in good standing. Warm, well kept and full of useful company."},
     {id: "large_house", name: "Large house", category: "Properties", expense: 25000, effect: 12, requires: [{coins: 2500000}],
         tooltip: "Much larger than a regular house, which boasts even more rooms and multiple floors. The building is quite spacious but comes with a hefty price tag."},
     {id: "small_palace", name: "Small palace", category: "Properties", expense: 300000, effect: 25, requires: [{coins: 30000000}],
@@ -156,15 +181,28 @@ const itemList = [
 
     // Misc
     {id: "book", name: "Book", category: "Misc", expense: 10, effect: 1.5, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{coins: 0}],
+        closesIn: 1300, successor: "printed_tome",
         tooltip: "A place to write down all your thoughts and discoveries, allowing you to learn a lot more quickly."},
+    // Age of Guilds
+    {id: "printed_tome", name: "Printed tome", category: "Misc", expense: 25, effect: 2, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{coins: 2500}],
+        availableFrom: 1300,
+        tooltip: "A book set in type rather than copied by hand. Cheaper, clearer and far more of them than any scribe could make."},
     {id: "dumbbells", name: "Dumbbells", category: "Misc", expense: 50, effect: 1.5, description: "Strength xp", boosts: [{stat: "xp", of: "strength"}], requires: [{coins: 5000}],
         tooltip: "Heavy tools used in strenuous exercise to toughen up and accumulate strength even faster than before. "},
     {id: "personal_squire", name: "Personal squire", category: "Misc", expense: 200, effect: 2, description: "Job xp", boosts: [{stat: "xp", of: "jobs"}], requires: [{coins: 20000}],
         tooltip: "Assists you in completing day to day activities, giving you more time to be productive at work."},
+    // Age of Guilds
+    {id: "ledger", name: "Ledger", category: "Misc", expense: 300, effect: 2, description: "Common work xp", boosts: [{stat: "xp", of: "Common work"}], requires: [{coins: 30000}],
+        availableFrom: 1300,
+        tooltip: "A bound book of accounts in the guild style. Knowing where every coin went makes every trade quicker to learn."},
     {id: "steel_longsword", name: "Steel longsword", category: "Misc", expense: 1000, effect: 2, description: "Military xp", boosts: [{stat: "xp", of: "Military"}], requires: [{coins: 100000}],
         tooltip: "A fine blade used to slay enemies even quicker in combat and therefore gain more experience."},
     {id: "butler", name: "Butler", category: "Misc", expense: 7500, effect: 1.5, description: "Happiness", boosts: [{stat: "happiness"}], requires: [{coins: 750000}],
         tooltip: "Keeps your household clean at all times and also prepares three delicious meals per day, leaving you in a happier, stress-free mood."},
+    // Age of Guilds
+    {id: "guild_seal", name: "Guild seal", category: "Misc", expense: 20000, effect: 1.5, description: "Job pay", boosts: [{stat: "income", of: "jobs"}], requires: [{coins: 2000000}],
+        availableFrom: 1300,
+        tooltip: "The guild's mark on your work. Patrons pay more for what they know the guild will stand behind."},
     {id: "sapphire_charm", name: "Sapphire charm", category: "Misc", expense: 50000, effect: 3, description: "Magic xp", boosts: [{stat: "xp", of: "Magic"}], requires: [{coins: 5000000}],
         tooltip: "Embedded with a rare sapphire, this charm activates more mana channels within your body, providing a much easier time learning magic."},
     {id: "study_desk", name: "Study desk", category: "Misc", expense: 1000000, effect: 2, description: "Skill xp", boosts: [{stat: "xp", of: "skills"}], requires: [{coins: 100000000}],
@@ -198,6 +236,10 @@ const unlockList = [
     {id: "time_warping_info", name: "Time warping info", requires: [{task: "mage", level: 10}]},
     {id: "automation", name: "Automation", permanent: true, requires: [{age: 20}]},
     {id: "quick_task_display", name: "Quick task display", permanent: true, requires: [{age: 20}]},
+    // Age of Guilds: Letters opens with the era in each life, and stays out
+    // of sight until some life has reached it
+    {id: "letters", name: "Letters", category: "Letters", requires: [{year: 1300}]},
+    {id: "guilds_glimpse", name: "Guilds glimpse", reveals: ["Letters"], permanent: true, requires: [{year: 1300}]},
 ] as const satisfies readonly UnlockDefinition[]
 export const unlocks: readonly UnlockDefinition[] = unlockList
 
@@ -229,6 +271,10 @@ const eventList = [
     {id: "blood_moon", name: "Blood Moon", plural: "Blood Moons", season: "winter", everyYears: 13, offset: 4,
         effects: [{label: "evil gain", effect: 1.5, boosts: [{stat: "evilGain"}]}],
         requires: "dark_magic", description: "Every 13 years. Evil embraced under a red moon runs deeper."},
+    // Age of Guilds: from 1300, in 1300, 1304, 1308, ...
+    {id: "guild_fair", name: "Guild Fair", plural: "Guild Fairs", season: "summer", everyYears: 4, offset: 0, from: 1300,
+        effects: [{label: "Common work pay", effect: 1.5, boosts: [{stat: "income", of: "Common work"}]}],
+        description: "Every 4 years from 1300. Every guild sets out its stalls, and trade is brisk."},
 ] as const satisfies readonly EventDefinition[]
 export const events: readonly EventDefinition[] = eventList
 
@@ -243,6 +289,9 @@ export const eventNewDays = 20
 const eraList = [
     {id: "age_of_fiefs", name: "Age of Fiefs", startYear: 1200,
         description: "Lords hold the land, and every trade answers to one of them."},
+    // Start year set in GAME-99: reached in the first life with Immortality
+    {id: "age_of_guilds", name: "Age of Guilds", startYear: 1300,
+        description: "The guilds have taken the trades under charter. Trade and learning organise, and the old ways of working give way."},
 ] as const satisfies readonly EraDefinition[]
 export const eras: readonly EraDefinition[] = eraList
 
@@ -286,6 +335,7 @@ export const headerRowColors: Record<Category, string> = {
     "Combat": "var(--pk-cat-combat)",
     "Magic": "var(--pk-cat-magic)",
     "Dark magic": "var(--pk-cat-dark-magic)",
+    "Letters": "var(--pk-cat-letters)",
     "Properties": "var(--pk-cat-properties)",
     "Misc": "var(--pk-cat-misc)",
 }
@@ -304,11 +354,13 @@ type Expect<Actual extends Allowed, Allowed> = [Actual, Allowed]
 type AllDefinitions = typeof jobList | typeof skillList | typeof itemList | typeof unlockList
 type EventBoost = (typeof eventList)[number]["effects"][number]["boosts"][number]
 type RequiredTask = Extract<AllDefinitions[number]["requires"][number], {task: string}>["task"]
+type Successor = Extract<(typeof jobList | typeof itemList)[number], {successor: string}>["successor"]
 type BoostedTarget = Extract<Extract<(typeof skillList | typeof itemList)[number], {boosts: unknown}>["boosts"][number], {of: string}>["of"]
 type UnlockedCategory = Extract<(typeof unlockList)[number], {category: string}>["category"] | Extract<(typeof unlockList)[number], {reveals: unknown}>["reveals"][number]
 export type _RequiredTasksExist = Expect<RequiredTask, TaskId>
+export type _SuccessorsExist = Expect<Successor, JobId | (typeof itemList)[number]["id"]>
 export type _BoostTargetsExist = Expect<BoostedTarget, BoostTarget>
 export type _UnlockedCategoriesExist = Expect<UnlockedCategory, Category>
 export type _EventSeasonsExist = Expect<(typeof eventList)[number]["season"], SeasonId>
-export type _EventUnlocksExist = Expect<(typeof eventList)[number]["requires"], (typeof unlockList)[number]["id"]>
+export type _EventUnlocksExist = Expect<Extract<(typeof eventList)[number], {requires: string}>["requires"], (typeof unlockList)[number]["id"]>
 export type _EventTargetsExist = Expect<Extract<EventBoost, {of: string}>["of"], BoostTarget>

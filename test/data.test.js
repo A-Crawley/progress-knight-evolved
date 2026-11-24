@@ -101,6 +101,12 @@ test("events have a name, a plural, a description and effects that do something"
             assert.ok(effect.label && effect.effect > 0 && effect.effect != 1 && effect.boosts.length > 0, event.id)
         }
         if (event.requires) assert.ok(unlocks.some(unlock => unlock.id == event.requires), event.id)
+        // An era's event starts with an era and comes round in its first year
+        if (event.from !== undefined) {
+            assert.ok(game.api.eras.some(era => era.startYear == event.from), event.id + " starts with an era")
+            assert.ok(game.api.happensIn(event, event.from), event.id + " comes round in " + event.from)
+        }
+        if (event.until !== undefined) assert.ok(event.from === undefined || event.until > event.from, event.id)
     }
 })
 

@@ -19,7 +19,8 @@ import { gameData } from "../../src/game/state.ts"
 import { getIncome, isUnlocked, rebirthOne, rebirthTwo, update } from "../../src/game/engine.ts"
 import { applyStatBoosts, getLifespan, isAlive, updateSpeed } from "../../src/game/rules.ts"
 import type { Job, Skill } from "../../src/game/classes.ts"
-import type { JobDefinition } from "../../src/game/types.ts"
+import type { JobDefinition, ItemDefinition } from "../../src/game/types.ts"
+import { isOpen } from "../../src/game/eras.ts"
 
 // Share of income spent on property and misc items
 const BUDGET = 0.9
@@ -30,8 +31,12 @@ const CHOOSE_EVERY = 20
 
 const ARCANE = "The Arcane Association"
 
+// Unlocked, and for a job or item open in the year the life is in (eras):
+// what a player could pick
 function unlocked(name: string): boolean {
-    return gameData.requirements[name].isCompleted()
+    if (!gameData.requirements[name].isCompleted()) return false
+    const entity = gameData.taskData[name] ?? gameData.itemData[name]
+    return isOpen(entity.baseData as JobDefinition | ItemDefinition)
 }
 
 function task(definition: JobDefinition): Job {

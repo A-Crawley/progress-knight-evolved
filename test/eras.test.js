@@ -49,13 +49,14 @@ test("the engine can play on test-only game data, and the next load is the real 
 // The world day a year starts on
 const startOf = year => (year - 1200) * DAYS_PER_YEAR
 
-test("getEra names the era a year is in; the real game has only the Age of Fiefs", async () => {
+test("getEra names the era a year is in: the Age of Fiefs, then the Age of Guilds from 1300", async () => {
     const { api } = await loadEngine()
     assert.equal(api.getEra(1199), undefined)
     assert.equal(api.getEra(1200).name, "Age of Fiefs")
-    assert.equal(api.getEra(1900).name, "Age of Fiefs")
-    assert.equal(api.getNextEra(1200), undefined)
-    assert.equal(api.getGlimpsedEra(), undefined)
+    assert.equal(api.getEra(1299).name, "Age of Fiefs")
+    assert.equal(api.getEra(1300).name, "Age of Guilds")
+    assert.equal(api.getNextEra(1200).name, "Age of Guilds")
+    assert.equal(api.getGlimpsedEra(), undefined, "nothing is glimpsed in a new game")
 })
 
 test("with the test era, getEra and getNextEra switch over on its first year", async () => {
@@ -311,4 +312,154 @@ test("the last job closing is remembered for this life, with where you moved to"
 
     api.rebirthOne()
     assert.equal(gameData.lastClosing, null)
+})
+
+// ---------------------------------------------------------------------------
+// An era's events
+
+const fair = api => api.events.find(event => event.id == "test_fair")
+
+test("an era's event only comes round from its first year and before its last", async () => {
+    const { api } = await loadEngine({data: withTestEra})
+    assert.deepEqual([1228, 1229, 1230, 1231, 1232, 1238, 1240, 1242].map(year => api.happensIn(fair(api), year)),
+        [false, false, true, false, true, true, false, false])
+})
+
+test("an era's event stays out of sight until some life has reached its first year", async () => {
+    const { api, gameData } = await loadEngine({data: withTestEra})
+    assert.equal(api.isEventUnlocked(fair(api)), false)
+    assert.ok(!api.getUpcomingEvents(0, 20).some(found => found.event.id == "test_fair"))
+
+    gameData.furthestDay = startOf(1230)
+    assert.equal(api.isEventUnlocked(fair(api)), true)
+    assert.equal(api.getUpcomingEvents(0, 40).filter(found => found.event.id == "test_fair")[0].year, 1230)
+})
+
+test("an era's event works while it runs: the Test fair doubles Common work pay in Summer 1230", async () => {
+    const game = await loadEngine({data: withTestEra})
+    const { gameData } = game
+    const beggar = gameData.taskData["Beggar"]
+    goToYear(gameData, 1229)
+    game.fastTicks(1)
+    const before = beggar.getIncome()
+    goToYear(gameData, 1230)
+    game.fastTicks(1)
+    assert.equal(beggar.getIncome(), before * 2)
+})
+
+// ---------------------------------------------------------------------------
+// The Age of Guilds (the real game's first later era)
+
+// 1300 is age 114, past the natural 70: Immortality 200 gives about 176
+function liveLong(gameData) {
+    gameData.taskData["Immortality"].level = 200
+}
+
+test("in 1300 Merchant closes and passes to Guild merchant, carrying its level as an XP bonus", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    gameData.taskData["Bargaining"].level = 50
+    gameData.taskData["Blacksmith"].level = 10
+    gameData.taskData["Merchant"].level = 32
+    game.fastTicks(1)
+    api.setTask("Merchant")
+    api.setTask("Guild merchant")
+    assert.equal(gameData.currentJob.name, "Merchant", "Guild merchant hasn't opened yet")
+
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    assert.equal(gameData.currentJob.name, "Guild merchant")
+    assert.equal(api.getInheritedXpMultiplier(gameData.taskData["Guild merchant"]), 4.2)
+    assert.equal(api.getEraBanner().name, "Age of Guilds")
+})
+
+test("Banker and Knight-commander open in 1300, each behind its own requirements", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    for (const [name, level] of [["Guild merchant", 10], ["Accounting", 50], ["Battle tactics", 300], ["Elite knight", 10]]) {
+        gameData.taskData[name].level = level
+    }
+    game.fastTicks(1)
+    api.setTask("Banker")
+    api.setTask("Knight-commander")
+    assert.equal(gameData.currentJob.name, "Beggar", "neither opens before 1300")
+
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    api.setTask("Banker")
+    assert.equal(gameData.currentJob.name, "Banker")
+    api.setTask("Knight-commander")
+    assert.equal(gameData.currentJob.name, "Knight-commander")
+    // Knight-commander comes straight after Elite knight
+    const military = api.jobCategories["Military"]
+    assert.equal(military[military.indexOf("Elite knight") + 1], "Knight-commander")
+})
+
+test("Letters stays out of sight until a life reaches 1300, opens then, and shows locked in later lives", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    api.setAutoLearn(true)
+    game.fastTicks(5)
+    assert.equal(api.isUnlocked("guilds_glimpse"), false)
+    assert.equal(api.isUnlocked("letters"), false)
+    assert.equal(gameData.requirements["Literacy"].isCompleted(), false)
+    assert.notEqual(gameData.currentSkill.name, "Literacy", "auto-learn can't pick a Letters skill early")
+
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    assert.equal(api.isUnlocked("letters"), true)
+    assert.equal(gameData.requirements["Literacy"].isCompleted(), true)
+
+    api.rebirthOne()
+    game.fastTicks(1)
+    assert.equal(api.isUnlocked("guilds_glimpse"), true, "revealed for good")
+    assert.equal(api.isUnlocked("letters"), false, "but locked again until 1300")
+    assert.equal(gameData.requirements["Literacy"].isCompleted(), false)
+})
+
+test("in 1300 Book closes and passes to Printed tome; the Guild items and residence open then", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    gameData.coins = 3000000
+    game.fastTicks(1)
+    api.setMisc("Book")
+    for (const name of ["Printed tome", "Ledger", "Guild seal"]) api.setMisc(name)
+    api.setProperty("Guildhall residence")
+    assert.deepEqual(gameData.currentMisc.map(item => item.name), ["Book"], "nothing of the Guilds before 1300")
+    assert.equal(gameData.currentProperty.name, "Homeless")
+
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    assert.deepEqual(gameData.currentMisc.map(item => item.name), [], "Book switched off")
+    for (const name of ["Printed tome", "Ledger", "Guild seal"]) api.setMisc(name)
+    api.setProperty("Guildhall residence")
+    assert.deepEqual(gameData.currentMisc.map(item => item.name), ["Printed tome", "Ledger", "Guild seal"])
+    assert.equal(gameData.currentProperty.name, "Guildhall residence")
+    // Each item shows up once its 100x reveal is held
+    for (const name of ["Printed tome", "Ledger", "Guild seal", "Guildhall residence"]) {
+        const item = gameData.itemData[name]
+        assert.equal(item.baseData.requires[0].coins, item.baseData.expense * 100, name)
+    }
+})
+
+test("the Guild Fair raises Common work pay by half every fourth Summer from 1300, and is unseen before", async () => {
+    const game = await loadEngine()
+    const { api, gameData } = game
+    liveLong(gameData)
+    const fairEvent = api.events.find(event => event.id == "guild_fair")
+    assert.deepEqual([1296, 1300, 1301, 1304].map(year => api.happensIn(fairEvent, year)), [false, true, false, true])
+    assert.ok(!api.getUpcomingEvents(0, 50).some(found => found.event.id == "guild_fair"), "not listed before any life reaches 1300")
+
+    const beggar = gameData.taskData["Beggar"]
+    goToYear(gameData, 1299)
+    game.fastTicks(1)
+    const before = beggar.getIncome()
+    goToYear(gameData, 1300)
+    game.fastTicks(1)
+    assert.ok(api.getActiveEvents().some(found => found.event.id == "guild_fair"))
+    assert.equal(beggar.getIncome(), Math.round(before * 1.5))
 })

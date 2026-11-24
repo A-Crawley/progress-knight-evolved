@@ -87,7 +87,8 @@ function showNeed(need: Need): ShownNeed {
         label: need.label,
         met: need.have >= need.need,
         progress: Math.round(Math.min(100, Math.max(0, need.have / need.need * 100)) * 10) / 10,
-        text: coins ? null : format(need.have) + " / " + format(need.need),
+        // Years read as years (1255 / 1300), not as large numbers (1.3k)
+        text: coins ? null : need.kind == "year" ? need.have + " / " + need.need : format(need.have) + " / " + format(need.need),
         have: coins ? formatCoins(need.have) : null,
         need: coins ? formatCoins(need.need) : null,
     }
