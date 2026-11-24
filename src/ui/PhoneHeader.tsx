@@ -4,13 +4,14 @@
 
 import { useRef } from "react"
 import { daysToYears, getLifespan } from "../game/rules.ts"
-import { getExpense, getIncome, getNet, isLifeOver, setPause } from "../game/engine.ts"
+import { getExpense, getIncome, getNet, isLifeOver } from "../game/engine.ts"
+import { togglePause } from "./actions.ts"
 import { daysLeftInSeason, formatDate, getWorldDay, toDate } from "../game/calendar.ts"
 import { getActiveEvents } from "../game/events.ts"
 import { effectColor, effectText } from "./eventText.ts"
 import type { SeasonId } from "../game/data.ts"
 import { gameData } from "../game/state.ts"
-import { requestRender, sameData, useGameValue } from "./gameStore.ts"
+import { sameData, useGameValue } from "./gameStore.ts"
 import { FormattedCoins } from "./CoinParts.tsx"
 import { formatCoins } from "./format.ts"
 import { getLifeShare } from "./life.ts"
@@ -56,7 +57,7 @@ export function PhoneHeader() {
         <header className="phone-header">
             <div className="phone-header-row">
                 <span className="phone-header-title">Progress Knight</span>
-                <button type="button" className="phone-header-pause" aria-label={paused ? "Play" : "Pause"} onClick={() => {setPause(); requestRender()}}>
+                <button type="button" className="phone-header-pause" aria-label={paused ? "Play" : "Pause"} onClick={togglePause}>
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         {paused ? <path d="M7 5l12 7-12 7z" /> : <path d="M8 5v14M16 5v14" />}
                     </svg>

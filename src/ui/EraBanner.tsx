@@ -5,13 +5,14 @@
 // setting turn them off.
 
 import { jobs, items } from "../game/data.ts"
-import { dismissEraBanner, getInheritedXpMultiplier } from "../game/engine.ts"
+import { getInheritedXpMultiplier } from "../game/engine.ts"
+import { dismissEraBanner } from "./actions.ts"
 import { eraStartDay, getEraBanner } from "../game/eras.ts"
 import { formatDate, toDate } from "../game/calendar.ts"
 import { Job } from "../game/classes.ts"
 import { gameData } from "../game/state.ts"
 import type { JobDefinition, ItemDefinition } from "../game/types.ts"
-import { requestRender, sameData, useGameValue } from "./gameStore.ts"
+import { sameData, useGameValue } from "./gameStore.ts"
 import { EraIcon } from "./EraIcon.tsx"
 
 // What the era closed that this life had: jobs it unlocked and items it
@@ -75,7 +76,7 @@ export function EraBanner() {
                         </>}
                     </div>
                     {" "}
-                    <button type="button" className="era-banner-button" onClick={() => {dismissEraBanner(view.id); requestRender()}}>Onward</button>
+                    <button type="button" className="era-banner-button" onClick={() => dismissEraBanner(view.id)}>Onward</button>
                 </section>
             )}
         </div>
