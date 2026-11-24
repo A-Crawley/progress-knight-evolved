@@ -13,11 +13,13 @@ export type Boost =
 
 // One condition for unlocking something. A definition's conditions are all
 // of the same kind.
-export type TaskRequirementSpec = {readonly task: string, readonly level: number, readonly coins?: never, readonly age?: never, readonly evil?: never}
-export type CoinRequirementSpec = {readonly coins: number, readonly task?: never, readonly level?: never, readonly age?: never, readonly evil?: never}
-export type AgeRequirementSpec = {readonly age: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly evil?: never}
-export type EvilRequirementSpec = {readonly evil: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly age?: never}
-export type RequirementSpec = TaskRequirementSpec | CoinRequirementSpec | AgeRequirementSpec | EvilRequirementSpec
+export type TaskRequirementSpec = {readonly task: string, readonly level: number, readonly coins?: never, readonly age?: never, readonly evil?: never, readonly year?: never}
+export type CoinRequirementSpec = {readonly coins: number, readonly task?: never, readonly level?: never, readonly age?: never, readonly evil?: never, readonly year?: never}
+export type AgeRequirementSpec = {readonly age: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly evil?: never, readonly year?: never}
+export type EvilRequirementSpec = {readonly evil: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly age?: never, readonly year?: never}
+// The world year (calendar.ts) a life has reached
+export type YearRequirementSpec = {readonly year: number, readonly task?: never, readonly level?: never, readonly coins?: never, readonly age?: never, readonly evil?: never}
+export type RequirementSpec = TaskRequirementSpec | CoinRequirementSpec | AgeRequirementSpec | EvilRequirementSpec | YearRequirementSpec
 
 // Replaces a skill's default effect of 1 + effect * level
 export type EffectCurve =

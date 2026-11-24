@@ -6,6 +6,7 @@ import { unlocks } from "../game/data.ts"
 import { gameData } from "../game/state.ts"
 import type { Job, Skill, Item, Requirement, TaskCondition } from "../game/classes.ts"
 import { daysToYears } from "../game/rules.ts"
+import { getWorldYear } from "../game/calendar.ts"
 import { isUnlocked } from "../game/engine.ts"
 import { FormattedCoins } from "./CoinParts.tsx"
 import { sameData, useGameValue } from "./gameStore.ts"
@@ -56,6 +57,7 @@ function needsOf(requirement: Requirement): Need[] {
         }
         if (kind == "evil") return {kind, label: "Evil", have: gameData.evil, need: condition.requirement}
         if (kind == "age") return {kind, label: "Age", have: Math.floor(daysToYears(gameData.days)), need: condition.requirement}
+        if (kind == "year") return {kind, label: "Year", have: getWorldYear(), need: condition.requirement}
         return {kind, label: "Coins", have: gameData.coins, need: condition.requirement}
     })
 }

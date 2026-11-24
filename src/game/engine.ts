@@ -9,10 +9,10 @@ import type { LifeBest, LifeEnd } from "./state.ts"
 import { updateSpeed, getSourceEffect, applyStatBoosts, applySpeed, daysToYears, getLifespan } from "./rules.ts"
 import { getEventEffect } from "./events.ts"
 import { getWorldDay } from "./calendar.ts"
-import { Job, Skill, Item, TaskRequirement, CoinRequirement, AgeRequirement, EvilRequirement } from "./classes.ts"
+import { Job, Skill, Item, TaskRequirement, CoinRequirement, AgeRequirement, EvilRequirement, YearRequirement } from "./classes.ts"
 import type { Requirement } from "./classes.ts"
 import type { AnyDefinition, Boost, JobDefinition, SkillDefinition, ItemDefinition, TargetedStat,
-    TaskRequirementSpec, CoinRequirementSpec, AgeRequirementSpec, EvilRequirementSpec } from "./types.ts"
+    TaskRequirementSpec, CoinRequirementSpec, AgeRequirementSpec, EvilRequirementSpec, YearRequirementSpec } from "./types.ts"
 
 export let skillWithLowestMaxXp: Skill | null = null
 
@@ -328,6 +328,7 @@ export function createRequirement(definition: AnyDefinition): Requirement {
     if (types.has("coins")) return new CoinRequirement((specs as readonly CoinRequirementSpec[]).map(spec => ({requirement: spec.coins})))
     if (types.has("age")) return new AgeRequirement((specs as readonly AgeRequirementSpec[]).map(spec => ({requirement: spec.age})))
     if (types.has("evil")) return new EvilRequirement((specs as readonly EvilRequirementSpec[]).map(spec => ({requirement: spec.evil})))
+    if (types.has("year")) return new YearRequirement((specs as readonly YearRequirementSpec[]).map(spec => ({requirement: spec.year})))
     throw new Error(definition.name + " has an unknown kind of requirement")
 }
 

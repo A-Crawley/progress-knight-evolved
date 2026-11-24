@@ -2,7 +2,8 @@
 // id that saves can refer to even if its display name changes.
 //
 // requires: what must be reached before it is shown and can be used. Task
-//   requirements refer to other jobs/skills by id.
+//   requirements refer to other jobs/skills by id. The others are a number
+//   of coins, an age, an amount of evil, or a world year ({year: 1300}).
 // effectCurve (skills, optional): replaces the default effect of
 //   1 + effect * level.
 //   {type: "log", base}: 1 + log_base(level + 1)

@@ -1,6 +1,7 @@
 import { itemCategories } from "./data.ts"
 import { gameData } from "./state.ts"
 import { getBaseLog, applyMultipliers, applySpeed, daysToYears } from "./rules.ts"
+import { getWorldYear } from "./calendar.ts"
 import type { JobDefinition, SkillDefinition, ItemDefinition } from "./types.ts"
 
 // Fields are declared, not initialised here, so the objects are built
@@ -145,7 +146,7 @@ export interface TaskCondition extends Condition {
 export abstract class Requirement<C extends Condition = Condition> {
     declare requirements: C[]
     declare completed: boolean
-    declare type: "task" | "coins" | "age" | "evil"
+    declare type: "task" | "coins" | "age" | "evil" | "year"
 
     constructor(requirements: C[]) {
         this.requirements = requirements
@@ -207,5 +208,16 @@ export class EvilRequirement extends Requirement {
 
     getCondition(requirement: Condition): boolean {
         return gameData.evil >= requirement.requirement
+    }
+}
+
+export class YearRequirement extends Requirement {
+    constructor(requirements: Condition[]) {
+        super(requirements)
+        this.type = "year"
+    }
+
+    getCondition(requirement: Condition): boolean {
+        return getWorldYear() >= requirement.requirement
     }
 }
