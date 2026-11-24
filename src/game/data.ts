@@ -23,7 +23,7 @@
 // they refer to are checked against the ids that exist (see the end of
 // this file), so a typo fails npm run typecheck.
 
-import type { JobDefinition, SkillDefinition, ItemDefinition, UnlockDefinition, SeasonDefinition, CalendarDefinition, EventDefinition } from "./types.ts"
+import type { JobDefinition, SkillDefinition, ItemDefinition, UnlockDefinition, SeasonDefinition, CalendarDefinition, EventDefinition, EraDefinition } from "./types.ts"
 
 function definitionsByName<T extends {name: string}>(definitions: readonly T[]): Record<string, T> {
     const byName: Record<string, T> = {}
@@ -234,6 +234,17 @@ export const events: readonly EventDefinition[] = eventList
 
 // Days at the start of an event's season when it is shown as just begun
 export const eventNewDays = 20
+
+// Eras, in the order they start (see EraDefinition in types.ts and eras.ts).
+// The first starts with the calendar, so every date is in an era. Later
+// eras close jobs and items (closesIn) and open their successors
+// (availableFrom); a permanent unlock with {year} and reveals shows an
+// era's categories in every life once any life has reached it.
+const eraList = [
+    {id: "age_of_fiefs", name: "Age of Fiefs", startYear: 1200,
+        description: "Lords hold the land, and every trade answers to one of them."},
+] as const satisfies readonly EraDefinition[]
+export const eras: readonly EraDefinition[] = eraList
 
 // What a new life starts with (ids)
 export const startingItems: {readonly job: JobId, readonly skill: SkillId, readonly property: PropertyId} = {job: "beggar", skill: "concentration", property: "homeless"}

@@ -1,4 +1,4 @@
-// Loads only the game logic (data, state, calendar, events, rules, classes, engine
+// Loads only the game logic (data, state, calendar, events, eras, rules, classes, engine
 // and history) with no page: no document, no window, no timers. If any of these
 // modules touched the page, loading or playing would throw.
 
@@ -6,7 +6,7 @@ import path from "node:path"
 import { vi } from "vitest"
 import { importModules, gameApi } from "./modules.js"
 
-const ENGINE_MODULES = ["src/game/data.ts", "src/game/state.ts", "src/game/calendar.ts", "src/game/events.ts", "src/game/rules.ts", "src/game/classes.ts", "src/game/engine.ts", "src/game/history.ts"]
+const ENGINE_MODULES = ["src/game/data.ts", "src/game/state.ts", "src/game/calendar.ts", "src/game/events.ts", "src/game/eras.ts", "src/game/rules.ts", "src/game/classes.ts", "src/game/engine.ts", "src/game/history.ts"]
 const DATA_MODULE = path.join(import.meta.dirname, "..", "..", "src/game/data.ts")
 
 // With options.data, the engine plays on changed game data rather than the

@@ -109,5 +109,14 @@ export interface EventDefinition {
     readonly description: string
 }
 
+// An age of the world, from the first day of startYear until the next era
+// starts. Eras are listed in the order they start.
+export interface EraDefinition {
+    readonly id: string
+    readonly name: string
+    readonly startYear: number
+    readonly description: string
+}
+
 // Anything with its own unlock requirement
 export type AnyDefinition = JobDefinition | SkillDefinition | ItemDefinition | UnlockDefinition

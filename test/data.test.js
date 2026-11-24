@@ -103,3 +103,15 @@ test("events have a name, a plural, a description and effects that do something"
         if (event.requires) assert.ok(unlocks.some(unlock => unlock.id == event.requires), event.id)
     }
 })
+
+test("eras start in order, the first with the calendar, each with a name and a description", async () => {
+    const eras = Array.from(game.api.eras)
+    assert.ok(eras.length > 0)
+    assert.equal(eras[0].startYear, game.api.calendar.epochYear)
+    for (let i = 1; i < eras.length; i++) assert.ok(eras[i].startYear > eras[i - 1].startYear, eras[i].id)
+    for (const era of eras) {
+        assert.match(era.id, /^[a-z0-9_]+$/)
+        assert.ok(Number.isInteger(era.startYear) && era.name && era.description, era.id)
+    }
+    assert.equal(new Set(eras.map(era => era.id)).size, eras.length, "duplicate era id")
+})
