@@ -238,23 +238,33 @@ export const eventNewDays = 20
 // What a new life starts with (ids)
 export const startingItems: {readonly job: JobId, readonly skill: SkillId, readonly property: PropertyId} = {job: "beggar", skill: "concentration", property: "homeless"}
 
-// Id <-> display name for every job, skill, item and unlock. Prototype-free
-// so lookups of untrusted keys (e.g. from a save) can't hit Object methods.
-export const namesById: Record<string, string> = Object.create(null)
-export const idsByName: Record<string, string> = Object.create(null)
-for (const definition of [...jobs, ...skills, ...items, ...unlocks]) {
-    namesById[definition.id] = definition.name
-    idsByName[definition.name] = definition.id
+// The lookup tables the rest of the game uses, built from the definitions.
+// Exported so tests can build the same tables for their own game data.
+export function deriveLookups(jobs: readonly JobDefinition[], skills: readonly SkillDefinition[], items: readonly ItemDefinition[], unlocks: readonly UnlockDefinition[]) {
+    // Id <-> display name for every job, skill, item and unlock. Prototype-free
+    // so lookups of untrusted keys (e.g. from a save) can't hit Object methods.
+    const namesById: Record<string, string> = Object.create(null)
+    const idsByName: Record<string, string> = Object.create(null)
+    for (const definition of [...jobs, ...skills, ...items, ...unlocks]) {
+        namesById[definition.id] = definition.name
+        idsByName[definition.name] = definition.id
+    }
+
+    // Entity name -> tooltip text
+    const tooltips: Record<string, string> = {}
+    for (const definition of [...jobs, ...skills, ...items]) {
+        tooltips[definition.name] = definition.tooltip
+    }
+
+    return {
+        namesById, idsByName, tooltips,
+        jobBaseData: definitionsByName(jobs), jobCategories: namesByCategory(jobs),
+        skillBaseData: definitionsByName(skills), skillCategories: namesByCategory(skills),
+        itemBaseData: definitionsByName(items), itemCategories: namesByCategory(items),
+    }
 }
 
-export const jobBaseData = definitionsByName(jobs)
-export const jobCategories = namesByCategory(jobs)
-
-export const skillBaseData = definitionsByName(skills)
-export const skillCategories = namesByCategory(skills)
-
-export const itemBaseData = definitionsByName(items)
-export const itemCategories = namesByCategory(items)
+export const {namesById, idsByName, tooltips, jobBaseData, jobCategories, skillBaseData, skillCategories, itemBaseData, itemCategories} = deriveLookups(jobs, skills, items, unlocks)
 
 // Category -> its colour, as a design token (css/tokens.css, css/dark.css)
 export const headerRowColors: Record<Category, string> = {
@@ -267,12 +277,6 @@ export const headerRowColors: Record<Category, string> = {
     "Dark magic": "var(--pk-cat-dark-magic)",
     "Properties": "var(--pk-cat-properties)",
     "Misc": "var(--pk-cat-misc)",
-}
-
-// Entity name -> tooltip text
-export const tooltips: Record<string, string> = {}
-for (const definition of [...jobs, ...skills, ...items]) {
-    tooltips[definition.name] = definition.tooltip
 }
 
 // Ids and names that exist in the data above
