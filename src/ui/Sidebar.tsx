@@ -153,20 +153,28 @@ function getNextLevelText(task: Job | Skill): string {
     return "next level in " + format(days) + (days == 1 ? " day" : " days")
 }
 
-// The current job or skill: a bar with its level and progress, and a muted line under it
+// The current job or skill: a bar with its level and progress, and a muted line under it.
+// A new task fades in and its bar glides to its progress rather than jumping.
+// Auto-learn changes the skill every second or two, and each change would send
+// the bar springing back, so under auto-learn the skill row has a sweeping
+// band instead of a fill (styles.css), and its line says auto-learn instead of
+// a countdown that keeps resetting.
 function QuickTask({kind, className}: {kind: "Job" | "Skill", className: string}) {
     const getTask = () => kind == "Job" ? gameData.currentJob : gameData.currentSkill
     const task = useGameValue(() => {
         const task = getTask()
-        return {name: task.name, level: task.level, next: getNextLevelText(task)}
+        const autoLearning = kind == "Skill" && gameData.automation.autoLearn
+        return {name: task.name, level: task.level, next: autoLearning ? "auto-learn" : getNextLevelText(task), autoLearning}
     }, shallowEqual)
     const fill = useRef<HTMLDivElement>(null)
-    useFillBar(fill, () => getTask().xp / getTask().getMaxXp(), task.name)
+    useFillBar(fill, () => getTask().xp / getTask().getMaxXp(), task.name, true)
     return (
-        <div className="quick-task">
-            <div className={classNames("quick-bar", className)}>
+        <div className={classNames("quick-task", task.autoLearning && "auto-learning")}>
+            {/* Under auto-learn a band sweeps along it (fx-anim: the effects setting can turn it off) */}
+            <div className={classNames("quick-bar", className, task.autoLearning && "fx-anim")}>
                 <div ref={fill} className="quick-fill"></div>
-                <div className="quick-text">
+                {/* Keyed on the task, so a new one fades in (fx-anim: the effects setting can turn it off) */}
+                <div key={task.name} className="quick-text fx-anim">
                     <span className="name">{task.name}</span>
                     <span className="quick-level">{"lvl " + task.level}</span>
                 </div>
