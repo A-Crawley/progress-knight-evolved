@@ -8,6 +8,7 @@ import path from "node:path"
 import { afterEach, vi } from "vitest"
 import { act, cleanup, render } from "@testing-library/react"
 import { createElement } from "react"
+import { useGameData } from "./gameData.js"
 
 const ROOT = path.join(import.meta.dirname, "..", "..")
 
@@ -18,10 +19,13 @@ afterEach(() => {
 })
 
 // file: the component's file in src/ui (e.g. "App.tsx"); component: its
-// export (e.g. "App")
-async function renderComponent(file, component, props = {}) {
+// export (e.g. "App"). With options.data, the game plays on changed game
+// data (see useGameData in gameData.js); options.before(engine, gameData)
+// runs after the new game is built, before the first render.
+async function renderComponent(file, component, props = {}, options = {}) {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
     vi.resetModules()
+    useGameData(options.data)
     const engine = await import(path.join(ROOT, "src/game/engine.ts"))
     const { gameData } = await import(path.join(ROOT, "src/game/state.ts"))
     const store = await import(path.join(ROOT, "src/ui/gameStore.ts"))
@@ -31,6 +35,7 @@ async function renderComponent(file, component, props = {}) {
     // A new game, as the page starts one
     engine.initGameData()
     engine.update()
+    if (options.before) options.before(engine, gameData)
 
     const view = render(createElement(module[component], props))
     // A render, with the progress bars put straight at their shares (the page
